@@ -134,7 +134,7 @@ enum EntryType {
 impl EntryType {
     const fn emoji_view(&self) -> &str {
         match self {
-            EntryType::Directory => " 🗂️ ",
+            EntryType::Directory => " 🗂️  ",
             EntryType::RegularFile => " 📄 ",
             EntryType::SymLink => " 🔗 ",
             EntryType::Unknown => " ? ",
@@ -372,7 +372,7 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
             }
             match sort_opt {
                 Sort::Name => arena.sort_by_name(),
-                Sort::Size => write_bytes("sort_size".as_bytes()),
+                Sort::Size => (), //write_bytes("sort_size".as_bytes()),
             }
             arena.print(&mut buffer);
         }
