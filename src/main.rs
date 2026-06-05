@@ -2,10 +2,11 @@
 #![no_main]
 
 use core::ffi::c_char;
+use core::fmt::Write;
 
-use libc::{STDOUT_FILENO, opendir, write};
+use libc::{STDOUT_FILENO, fstatat, opendir, write};
 extern crate alloc;
-use alloc::vec::Vec;
+use alloc::{str, vec::Vec};
 
 #[global_allocator]
 static ALLOCATOR: LibcAllocator = LibcAllocator;
@@ -155,6 +156,62 @@ impl From<u8> for EntryType {
     }
 }
 
+// https://man7.org/linux/man-pages/man3/stat.3type.html
+/*
+           dev_t      st_dev;      /* ID of device containing file */
+           ino_t      st_ino;      /* Inode number */
+           mode_t     st_mode;     /* File type and mode */
+           nlink_t    st_nlink;    /* Number of hard links */
+           uid_t      st_uid;      /* User ID of owner */
+           gid_t      st_gid;      /* Group ID of owner */
+           dev_t      st_rdev;     /* Device ID (if special file) */
+           off_t      st_size;     /* Total size, in bytes */
+           blksize_t  st_blksize;  /* Block size for filesystem I/O */
+           blkcnt_t   st_blocks;   /* Number of 512 B blocks allocated */
+*/
+
+struct Metadata(libc::stat);
+impl Metadata {
+    fn new(entry: &DirEntry) -> Option<Self> {
+        let mut stat_buf = core::mem::MaybeUninit::<libc::stat>::uninit();
+        let name = unsafe { (*entry.dirent).d_name };
+        let s = unsafe { fstatat(entry.dirfd, name.as_ptr(), stat_buf.as_mut_ptr(), 0) };
+        if s == 0 {
+            Some(Self(unsafe { stat_buf.assume_init() }))
+        } else {
+            None
+        }
+    }
+    // to make it cross compile eg arm-unknown-linux-gnueabihf size is i32 not i64
+
+    fn size(&self) -> usize {
+        self.0.st_size as usize
+    }
+    fn n_link(&self) -> usize {
+        self.0.st_nlink as usize
+    }
+    // last_modified , user, group, mode will be changed to return resolved data
+    // need to format properly, not as timestamp
+    fn last_modified(&self) -> usize {
+        self.0.st_mtime as usize
+    }
+    // need to retrieve user, not id
+    fn user(&self) -> usize {
+        self.0.st_uid as usize
+    }
+    // need to retrieve group, not id
+    fn group(&self) -> usize {
+        self.0.st_gid as usize
+    }
+
+    // need to fetch all needed params
+    // https://man7.org/linux/man-pages/man2/chmod.2.html
+    // https://jameshfisher.com/2017/02/24/what-is-mode_t/
+    fn mode(&self) -> usize {
+        self.0.st_mode as usize
+    }
+}
+
 impl DirEntry {
     fn name(&self) -> &core::ffi::CStr {
         unsafe { core::ffi::CStr::from_ptr((*self.dirent).d_name.as_ptr()) }
@@ -184,6 +241,13 @@ impl Iterator for OpenDir {
                 dirent,
             });
         }
+    }
+}
+
+impl core::fmt::Write for Buffer {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        self.push_bytes(s.as_bytes());
+        Ok(())
     }
 }
 
@@ -361,6 +425,23 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
             for entry in dir {
                 buffer.push_bytes(entry.entry_type().emoji_view().as_bytes());
                 buffer.push_bytes(entry.name().to_bytes());
+
+                /* just to test
+                if let Some(m) = Metadata::new(&entry) {
+                    buffer.push_bytes(b"  ");
+                    write!(buffer, "{}", m.size()).ok();
+                    buffer.push_bytes(b"  ");
+                    write!(buffer, "{}", m.n_link()).ok();
+                    buffer.push_bytes(b"  ");
+                    write!(buffer, "{}", m.last_modified()).ok();
+                    buffer.push_bytes(b"  ");
+                    write!(buffer, "{}", m.user()).ok();
+                    buffer.push_bytes(b"  ");
+                    write!(buffer, "{}", m.group()).ok();
+                    buffer.push_bytes(b"  ");
+                    write!(buffer, "{}", m.mode()).ok();
+                } */
+
                 buffer.push_bytes("\n".as_bytes());
             }
         }
@@ -372,7 +453,7 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
             }
             match sort_opt {
                 Sort::Name => arena.sort_by_name(),
-                Sort::Size => (), //write_bytes("sort_size".as_bytes()),
+                Sort::Size => (),
             }
             arena.print(&mut buffer);
         }
