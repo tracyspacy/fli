@@ -2,7 +2,6 @@
 #![no_main]
 
 use core::ffi::c_char;
-use core::fmt::Write;
 
 use libc::{STDOUT_FILENO, fstatat, opendir, write};
 extern crate alloc;
@@ -169,8 +168,8 @@ impl From<u8> for EntryType {
            blksize_t  st_blksize;  /* Block size for filesystem I/O */
            blkcnt_t   st_blocks;   /* Number of 512 B blocks allocated */
 */
-
 struct Metadata(libc::stat);
+#[allow(unused)]
 impl Metadata {
     fn new(entry: &DirEntry) -> Option<Self> {
         let mut stat_buf = core::mem::MaybeUninit::<libc::stat>::uninit();
@@ -195,13 +194,25 @@ impl Metadata {
     fn last_modified(&self) -> usize {
         self.0.st_mtime as usize
     }
-    // need to retrieve user, not id
-    fn user(&self) -> usize {
-        self.0.st_uid as usize
+
+    // https://www.man7.org/linux/man-pages/man3/getpwuid.3p.html
+    fn user_bytes(&self) -> Option<&[u8]> {
+        let pw = unsafe { libc::getpwuid(self.0.st_uid) };
+        // can return null pointer
+        if pw.is_null() {
+            None
+        } else {
+            Some(unsafe { core::ffi::CStr::from_ptr((*pw).pw_name).to_bytes() })
+        }
     }
-    // need to retrieve group, not id
-    fn group(&self) -> usize {
-        self.0.st_gid as usize
+    fn group_bytes(&self) -> Option<&[u8]> {
+        let gr = unsafe { libc::getgrgid(self.0.st_gid) };
+        // can return null pointer
+        if gr.is_null() {
+            None
+        } else {
+            Some(unsafe { core::ffi::CStr::from_ptr((*gr).gr_name).to_bytes() })
+        }
     }
 
     // need to fetch all needed params
@@ -425,7 +436,6 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
             for entry in dir {
                 buffer.push_bytes(entry.entry_type().emoji_view().as_bytes());
                 buffer.push_bytes(entry.name().to_bytes());
-
                 /* just to test
                 if let Some(m) = Metadata::new(&entry) {
                     buffer.push_bytes(b"  ");
@@ -435,10 +445,15 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
                     buffer.push_bytes(b"  ");
                     write!(buffer, "{}", m.last_modified()).ok();
                     buffer.push_bytes(b"  ");
-                    write!(buffer, "{}", m.user()).ok();
-                    buffer.push_bytes(b"  ");
-                    write!(buffer, "{}", m.group()).ok();
-                    buffer.push_bytes(b"  ");
+                    if let Some(user) = m.user_bytes() {
+                        buffer.push_bytes(user);
+                        buffer.push_bytes(b"  ");
+                    }
+
+                    if let Some(group) = m.group_bytes() {
+                        buffer.push_bytes(group);
+                        buffer.push_bytes(b"  ");
+                    }
                     write!(buffer, "{}", m.mode()).ok();
                 } */
 
