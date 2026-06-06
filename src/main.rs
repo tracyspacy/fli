@@ -1,8 +1,10 @@
 #![no_std]
 #![no_main]
 
-use core::ffi::c_char;
+// TODO:
+// - split to mods - hard to read already
 
+use core::ffi::c_char;
 use libc::{STDOUT_FILENO, fstatat, opendir, write};
 extern crate alloc;
 use alloc::{str, vec::Vec};
@@ -191,8 +193,36 @@ impl Metadata {
     }
     // last_modified , user, group, mode will be changed to return resolved data
     // need to format properly, not as timestamp
-    fn last_modified(&self) -> usize {
-        self.0.st_mtime as usize
+    // clippy!! where are you my Lord and Savior?!
+    fn last_modified_fmt(&self) -> Option<[u8; 15]> {
+        //example output 06/06/26 16:11 ie 14 bytes + null byte
+        // need to consider this then pushing to buffer
+        let mut char_buf: [u8; 15] = [0u8; 15];
+        let mut tm = core::mem::MaybeUninit::<libc::tm>::zeroed();
+        unsafe {
+            let mtime = &self.0.st_mtime as *const libc::time_t;
+            // https://linux.die.net/man/3/localtime_r
+            // can return null
+            let tm_ptr = libc::localtime_r(mtime, tm.as_mut_ptr());
+            if tm_ptr.is_null() {
+                return None;
+            }
+            let tm_ref = tm.assume_init_ref();
+            //https://www.man7.org/linux/man-pages/man3/strftime.3.html
+            // format
+            let fmt = b"%d/%m/%y %H:%M\0";
+            let writer = libc::strftime(
+                char_buf.as_mut_ptr() as *mut libc::c_char,
+                char_buf.len(),
+                fmt.as_ptr() as *const libc::c_char,
+                tm_ref,
+            );
+            // can be 0, so size is exceed the buffer size
+            if writer == 0 {
+                return None;
+            }
+        };
+        Some(char_buf)
     }
 
     // https://www.man7.org/linux/man-pages/man3/getpwuid.3p.html
@@ -436,15 +466,15 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
             for entry in dir {
                 buffer.push_bytes(entry.entry_type().emoji_view().as_bytes());
                 buffer.push_bytes(entry.name().to_bytes());
-                /* just to test
+                /* //just to test
+                use core::fmt::Write;
                 if let Some(m) = Metadata::new(&entry) {
                     buffer.push_bytes(b"  ");
                     write!(buffer, "{}", m.size()).ok();
                     buffer.push_bytes(b"  ");
                     write!(buffer, "{}", m.n_link()).ok();
                     buffer.push_bytes(b"  ");
-                    write!(buffer, "{}", m.last_modified()).ok();
-                    buffer.push_bytes(b"  ");
+
                     if let Some(user) = m.user_bytes() {
                         buffer.push_bytes(user);
                         buffer.push_bytes(b"  ");
@@ -455,6 +485,12 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
                         buffer.push_bytes(b"  ");
                     }
                     write!(buffer, "{}", m.mode()).ok();
+                    buffer.push_bytes(b"  ");
+
+                    if let Some(lm_time) = m.last_modified_fmt() {
+                        buffer.push_bytes(&lm_time);
+                        buffer.push_bytes(b"  ");
+                    }
                 } */
 
                 buffer.push_bytes("\n".as_bytes());
