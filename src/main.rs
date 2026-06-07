@@ -205,7 +205,6 @@ impl Metadata {
     fn n_link(&self) -> usize {
         self.0.st_nlink as usize
     }
-    // last_modified , user, group, mode will be changed to return resolved data
     // need to format properly, not as timestamp
     // clippy!! where are you my Lord and Savior?!
     fn last_modified_fmt(&self) -> Option<[u8; 15]> {
@@ -262,8 +261,17 @@ impl Metadata {
     // need to fetch all needed params
     // https://man7.org/linux/man-pages/man2/chmod.2.html
     // https://jameshfisher.com/2017/02/24/what-is-mode_t/
-    fn mode(&self) -> usize {
-        self.0.st_mode as usize
+    fn mode_bytes(&self) -> [u8; 9] {
+        let mode_digit = self.0.st_mode;
+        let fmt = b"rwxrwxrwx";
+        //will end with zero
+        let mut buf = [b'-'; 9];
+        for i in 0..9 {
+            if mode_digit & (1 << (8 - i)) != 0 {
+                buf[i] = fmt[i]
+            };
+        }
+        buf
     }
 }
 
@@ -449,7 +457,7 @@ impl Default for ReturnConfig {
 
 // so seems libc handles linker and there is no entry hassle
 #[unsafe(no_mangle)]
-fn main(argc: i32, argv: *const *mut libc::c_char) {
+fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
     let mut config = ReturnConfig::default();
     let mut sort: Option<Sort> = None;
 
@@ -475,40 +483,38 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
         Mode::Stream => {
             let Some(dir) = OpenDir::new(config.path) else {
                 //silently return, need to add error handling
-                return;
+                return -1;
             };
             //https://www.man7.org/linux/man-pages/man3/readdir.3.html
             // here we need to be very careful , readdir() returns raw pointer to the next entry,
             // so after each iteration, we can consider it as invalid and should not use after
             for entry in dir {
-                buffer.push_bytes(entry.entry_type().emoji_view().as_bytes());
-                buffer.push_bytes(entry.name().to_bytes());
                 /* //just to test
                 use core::fmt::Write;
                 if let Some(m) = Metadata::new(&entry) {
-                    buffer.push_bytes(b"  ");
-                    write!(buffer, "{}", m.size()).ok();
+                    buffer.push_bytes(&m.mode_bytes());
                     buffer.push_bytes(b"  ");
                     write!(buffer, "{}", m.n_link()).ok();
                     buffer.push_bytes(b"  ");
-
                     if let Some(user) = m.user_bytes() {
                         buffer.push_bytes(user);
                         buffer.push_bytes(b"  ");
                     }
-
                     if let Some(group) = m.group_bytes() {
                         buffer.push_bytes(group);
                         buffer.push_bytes(b"  ");
                     }
-                    write!(buffer, "{}", m.mode()).ok();
+                    write!(buffer, "{}", m.size()).ok();
                     buffer.push_bytes(b"  ");
 
                     if let Some(lm_time) = m.last_modified_fmt() {
                         buffer.push_bytes(&lm_time);
                         buffer.push_bytes(b"  ");
                     }
-                } */
+                }*/
+
+                buffer.push_bytes(entry.entry_type().emoji_view().as_bytes());
+                buffer.push_bytes(entry.name().to_bytes());
 
                 buffer.push_bytes("\n".as_bytes());
             }
@@ -516,7 +522,7 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
         Mode::Alloc(sort_opt) => {
             let Some(dir) = OpenDir::new(config.path) else {
                 //silently return, need to add error handling
-                return;
+                return -1;
             };
 
             let mut arena = EntryTable::new();
@@ -531,4 +537,5 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
         }
     }
     buffer.flush();
+    0
 }
