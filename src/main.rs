@@ -81,14 +81,28 @@ struct OpenDir {
     fd: i32, // file descriptor
 }
 
+/*
+opendir()
+The opendir() return a pointer to the directory stream.  On error, NULL is returned
+dirfd()
+On success, dirfd() returns a file descriptor (a nonnegative integer).  On error, -1 is returned
+*/
+
 impl OpenDir {
     // how correct it is , if default is just same folder
-    fn new(path: *const c_char) -> Self {
-        //opendir can be null!!!! add check
+    fn new(path: *const c_char) -> Option<Self> {
         let dir = unsafe { opendir(path) };
-        let fd = unsafe { libc::dirfd(dir) }; // can return error!
-
-        Self { dir, fd }
+        if dir.is_null() {
+            return None;
+        }
+        let fd = unsafe { libc::dirfd(dir) };
+        if fd.is_negative() {
+            // explicitely closing dir
+            // probably overkill, since main exits if new() returns none
+            unsafe { libc::closedir(dir) };
+            return None;
+        }
+        Some(Self { dir, fd })
     }
 }
 
@@ -459,7 +473,10 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
     let mut buffer = Buffer::new();
     match config.mode {
         Mode::Stream => {
-            let dir = OpenDir::new(config.path);
+            let Some(dir) = OpenDir::new(config.path) else {
+                //silently return, need to add error handling
+                return;
+            };
             //https://www.man7.org/linux/man-pages/man3/readdir.3.html
             // here we need to be very careful , readdir() returns raw pointer to the next entry,
             // so after each iteration, we can consider it as invalid and should not use after
@@ -497,7 +514,11 @@ fn main(argc: i32, argv: *const *mut libc::c_char) {
             }
         }
         Mode::Alloc(sort_opt) => {
-            let dir = OpenDir::new(config.path);
+            let Some(dir) = OpenDir::new(config.path) else {
+                //silently return, need to add error handling
+                return;
+            };
+
             let mut arena = EntryTable::new();
             for entry in dir {
                 arena.push(&entry);
