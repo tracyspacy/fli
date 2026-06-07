@@ -10,9 +10,10 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
-opt-level = "z"
+opt-level = "s" #"z"
 lto = true
-codegen-units = 1   
+codegen-units = 1
+strip = true   
 
 [dependencies]
 libc = {version="0.2.186", default-features = false }
