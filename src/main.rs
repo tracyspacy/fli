@@ -357,6 +357,7 @@ struct Entry {
     name_offset: u32,  // 4 bytes ? maybe usize
     name_len: u8,      // 1 byte - since generally [u8;255]
     d_type: EntryType, // 1 byte
+    metadata: Option<Metadata>,
 }
 
 struct EntryTable {
@@ -374,7 +375,7 @@ impl EntryTable {
         }
     }
 
-    fn push(&mut self, entry: &DirEntry) {
+    fn push_short(&mut self, entry: DirEntry) {
         let name = entry.name().to_bytes();
         let name_len = name.len();
         if name_len > 255 {
@@ -388,6 +389,28 @@ impl EntryTable {
             name_offset: offset as u32,
             name_len: name_len as u8,
             d_type: entry.entry_type(),
+            metadata: None,
+        });
+        self.index.push(idx);
+    }
+
+    fn push_long(&mut self, entry: DirEntry) {
+        let name = entry.name().to_bytes();
+        let name_len = name.len();
+        if name_len > 255 {
+            return; // maybe truncate?
+        }
+
+        let offset = self.arena.len();
+        self.arena.extend_from_slice(name);
+        let idx = self.entries.len();
+        // make it better, need error if none
+        let metadata = Metadata::new(&entry);
+        self.entries.push(Entry {
+            name_offset: offset as u32,
+            name_len: name_len as u8,
+            d_type: entry.entry_type(),
+            metadata,
         });
         self.index.push(idx);
     }
@@ -397,17 +420,6 @@ impl EntryTable {
         let name_offset = entry.name_offset as usize;
         let name_len = entry.name_len;
         &self.arena[name_offset..name_offset + name_len as usize]
-    }
-
-    fn print(&self, buffer: &mut Buffer) {
-        for i in 0..self.index.len() {
-            let entry = &self.entries[self.index[i]];
-            let e_type_str = entry.d_type.emoji_view();
-            let name = self.name_by_index(self.index[i]);
-            buffer.push_bytes(e_type_str.as_bytes());
-            buffer.push_bytes(name);
-            buffer.push_bytes(b"\n");
-        }
     }
 
     fn sort_by_name(&mut self) {
@@ -469,39 +481,71 @@ impl Output {
             alignments,
         }
     }
+
+    fn output_name_and_type(&mut self, name: &[u8], f_type: &[u8]) {
+        self.buffer.push_bytes(f_type);
+        self.buffer.push_bytes(name);
+        self.buffer.push_bytes(b"\n");
+    }
+
+    fn output_metadata(&mut self, m: &Metadata) {
+        use core::fmt::Write;
+        self.buffer.push_bytes(&m.mode_bytes());
+        self.buffer.push_bytes(b"  ");
+        write!(self.buffer, "{}", m.n_link()).ok();
+        self.buffer.push_bytes(b"  ");
+        if let Some(user) = m.user_bytes() {
+            self.buffer.push_bytes(user);
+            self.buffer.push_bytes(b"  ");
+        }
+        if let Some(group) = m.group_bytes() {
+            self.buffer.push_bytes(group);
+            self.buffer.push_bytes(b"  ");
+        }
+        write!(self.buffer, "{}", m.size()).ok();
+        self.buffer.push_bytes(b"  ");
+
+        if let Some(lm_time) = m.last_modified_fmt() {
+            self.buffer.push_bytes(&lm_time);
+            self.buffer.push_bytes(b"  ");
+        }
+    }
+
     fn stream_short(&mut self, entry: DirEntry) {
-        self.buffer
-            .push_bytes(entry.entry_type().emoji_view().as_bytes());
-        self.buffer.push_bytes(entry.name().to_bytes());
-        self.buffer.push_bytes("\n".as_bytes());
+        self.output_name_and_type(
+            entry.name().to_bytes(),
+            entry.entry_type().emoji_view().as_bytes(),
+        );
     }
     // add all
     fn stream_long(&mut self, entry: DirEntry) {
-        use core::fmt::Write;
         if let Some(m) = Metadata::new(&entry) {
-            self.buffer.push_bytes(&m.mode_bytes());
-            self.buffer.push_bytes(b"  ");
-            write!(self.buffer, "{}", m.n_link()).ok();
-            self.buffer.push_bytes(b"  ");
-            if let Some(user) = m.user_bytes() {
-                self.buffer.push_bytes(user);
-                self.buffer.push_bytes(b"  ");
-            }
-            if let Some(group) = m.group_bytes() {
-                self.buffer.push_bytes(group);
-                self.buffer.push_bytes(b"  ");
-            }
-            write!(self.buffer, "{}", m.size()).ok();
-            self.buffer.push_bytes(b"  ");
-
-            if let Some(lm_time) = m.last_modified_fmt() {
-                self.buffer.push_bytes(&lm_time);
-                self.buffer.push_bytes(b"  ");
-            }
+            self.output_metadata(&m);
         }
         self.stream_short(entry);
     }
 
+    fn push_arena_short(&mut self, arena: EntryTable) {
+        for i in 0..arena.index.len() {
+            let entry = &arena.entries[arena.index[i]];
+            let e_type_str = entry.d_type.emoji_view();
+            let name = arena.name_by_index(arena.index[i]);
+            self.output_name_and_type(name, e_type_str.as_bytes());
+        }
+    }
+
+    //prints short if none, need to decided if return as it is or handle error?
+    fn push_arena_long(&mut self, arena: EntryTable) {
+        for i in 0..arena.index.len() {
+            let entry = &arena.entries[arena.index[i]];
+            if let Some(m) = &entry.metadata {
+                self.output_metadata(m);
+            }
+            let e_type_str = entry.d_type.emoji_view();
+            let name = arena.name_by_index(arena.index[i]);
+            self.output_name_and_type(name, e_type_str.as_bytes());
+        }
+    }
     fn flush(&mut self) {
         self.buffer.flush();
     }
@@ -560,16 +604,29 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
                 return -1;
             };
             for entry in dir {
-                arena.push(&entry);
+                arena.push_short(entry);
             }
             match sort {
                 Sort::Name => arena.sort_by_name(),
                 Sort::Size => (),
             }
-            // move to output
-            arena.print(&mut output.buffer);
+            output.push_arena_short(arena);
         }
-        (Mode::Alloc(sort), Display::Long) => {}
+        (Mode::Alloc(sort), Display::Long) => {
+            let mut arena = EntryTable::new();
+            let Some(dir) = OpenDir::new(config.path) else {
+                //silently return, need to add error handling
+                return -1;
+            };
+            for entry in dir {
+                arena.push_long(entry);
+            }
+            match sort {
+                Sort::Name => arena.sort_by_name(),
+                Sort::Size => (),
+            }
+            output.push_arena_long(arena);
+        }
     }
     output.flush();
     0
