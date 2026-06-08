@@ -3,6 +3,7 @@
 
 // TODO:
 // - split to mods - hard to read already
+// - add tests
 
 use core::ffi::c_char;
 use libc::{STDOUT_FILENO, fstatat, opendir, write};
@@ -455,6 +456,57 @@ impl Default for ReturnConfig {
     }
 }
 
+//probably replace aligmnets with struct {size,n_link,user,group} but for now size and n_link should be enough
+struct Output {
+    buffer: Buffer,
+    alignments: Option<(usize, usize)>,
+}
+
+impl Output {
+    fn new(alignments: Option<(usize, usize)>) -> Self {
+        Self {
+            buffer: Buffer::new(),
+            alignments,
+        }
+    }
+    fn stream_short(&mut self, entry: DirEntry) {
+        self.buffer
+            .push_bytes(entry.entry_type().emoji_view().as_bytes());
+        self.buffer.push_bytes(entry.name().to_bytes());
+        self.buffer.push_bytes("\n".as_bytes());
+    }
+    // add all
+    fn stream_long(&mut self, entry: DirEntry) {
+        use core::fmt::Write;
+        if let Some(m) = Metadata::new(&entry) {
+            self.buffer.push_bytes(&m.mode_bytes());
+            self.buffer.push_bytes(b"  ");
+            write!(self.buffer, "{}", m.n_link()).ok();
+            self.buffer.push_bytes(b"  ");
+            if let Some(user) = m.user_bytes() {
+                self.buffer.push_bytes(user);
+                self.buffer.push_bytes(b"  ");
+            }
+            if let Some(group) = m.group_bytes() {
+                self.buffer.push_bytes(group);
+                self.buffer.push_bytes(b"  ");
+            }
+            write!(self.buffer, "{}", m.size()).ok();
+            self.buffer.push_bytes(b"  ");
+
+            if let Some(lm_time) = m.last_modified_fmt() {
+                self.buffer.push_bytes(&lm_time);
+                self.buffer.push_bytes(b"  ");
+            }
+        }
+        self.stream_short(entry);
+    }
+
+    fn flush(&mut self) {
+        self.buffer.flush();
+    }
+}
+
 // so seems libc handles linker and there is no entry hassle
 #[unsafe(no_mangle)]
 fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
@@ -477,10 +529,10 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
     if let Some(s) = sort {
         config.mode = Mode::Alloc(s)
     }
+    let mut output = Output::new(None);
 
-    let mut buffer = Buffer::new();
-    match config.mode {
-        Mode::Stream => {
+    match (config.mode, config.display) {
+        (Mode::Stream, Display::Short) => {
             let Some(dir) = OpenDir::new(config.path) else {
                 //silently return, need to add error handling
                 return -1;
@@ -489,53 +541,36 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
             // here we need to be very careful , readdir() returns raw pointer to the next entry,
             // so after each iteration, we can consider it as invalid and should not use after
             for entry in dir {
-                /* //just to test
-                use core::fmt::Write;
-                if let Some(m) = Metadata::new(&entry) {
-                    buffer.push_bytes(&m.mode_bytes());
-                    buffer.push_bytes(b"  ");
-                    write!(buffer, "{}", m.n_link()).ok();
-                    buffer.push_bytes(b"  ");
-                    if let Some(user) = m.user_bytes() {
-                        buffer.push_bytes(user);
-                        buffer.push_bytes(b"  ");
-                    }
-                    if let Some(group) = m.group_bytes() {
-                        buffer.push_bytes(group);
-                        buffer.push_bytes(b"  ");
-                    }
-                    write!(buffer, "{}", m.size()).ok();
-                    buffer.push_bytes(b"  ");
-
-                    if let Some(lm_time) = m.last_modified_fmt() {
-                        buffer.push_bytes(&lm_time);
-                        buffer.push_bytes(b"  ");
-                    }
-                }*/
-
-                buffer.push_bytes(entry.entry_type().emoji_view().as_bytes());
-                buffer.push_bytes(entry.name().to_bytes());
-
-                buffer.push_bytes("\n".as_bytes());
+                output.stream_short(entry);
             }
         }
-        Mode::Alloc(sort_opt) => {
+        (Mode::Stream, Display::Long) => {
             let Some(dir) = OpenDir::new(config.path) else {
                 //silently return, need to add error handling
                 return -1;
             };
-
+            for entry in dir {
+                output.stream_long(entry);
+            }
+        }
+        (Mode::Alloc(sort), Display::Short) => {
             let mut arena = EntryTable::new();
+            let Some(dir) = OpenDir::new(config.path) else {
+                //silently return, need to add error handling
+                return -1;
+            };
             for entry in dir {
                 arena.push(&entry);
             }
-            match sort_opt {
+            match sort {
                 Sort::Name => arena.sort_by_name(),
                 Sort::Size => (),
             }
-            arena.print(&mut buffer);
+            // move to output
+            arena.print(&mut output.buffer);
         }
+        (Mode::Alloc(sort), Display::Long) => {}
     }
-    buffer.flush();
+    output.flush();
     0
 }
