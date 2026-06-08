@@ -10,6 +10,9 @@ use libc::{STDOUT_FILENO, fstatat, opendir, write};
 extern crate alloc;
 use alloc::{str, vec::Vec};
 
+const MAX_INT_LEN: usize = 20;
+type IntBytes = [u8; MAX_INT_LEN];
+
 #[global_allocator]
 static ALLOCATOR: LibcAllocator = LibcAllocator;
 
@@ -32,6 +35,66 @@ fn write_bytes(bytes: &[u8]) {
     unsafe {
         write(STDOUT_FILENO, bytes.as_ptr() as *const _, bytes.len());
     }
+}
+
+// helper - primitive dgit counter
+//helper
+#[inline]
+fn digit_count(mut n: usize) -> usize {
+    if n < 10 {
+        return 1;
+    }
+    if n < 100 {
+        return 2;
+    }
+    if n < 1_000 {
+        return 3;
+    }
+    if n < 10_000 {
+        return 4;
+    }
+    if n < 100_000 {
+        return 5;
+    }
+    if n < 1_000_000 {
+        return 6;
+    }
+    if n < 10_000_000 {
+        return 7;
+    }
+    if n < 100_000_000 {
+        return 8;
+    }
+    // should be less than u32:max len
+    if n < 1_000_000_000 {
+        return 9;
+    }
+
+    let mut c = 10;
+    while n >= 1_000_000_000 {
+        n /= 10;
+        c += 1;
+    }
+    c
+}
+
+// helper to align int in bytes array if max len 5 but int is 12 ie 2 [b' ',b' ',b' ',b'1',b'2']
+fn align_int(buf: &mut IntBytes, digit: usize, width: usize) -> &[u8] {
+    buf.fill(b' ');
+    if digit == 0 {
+        buf[width - 1] = b'0';
+        return &buf[..width];
+    }
+    let mut tmp = digit;
+    let mut pos = width;
+    while tmp > 0 {
+        pos -= 1;
+        // b'0' = [48] + res of % till 9=> ascii numbers 0-9
+        buf[pos] = b'0' + (tmp % 10) as u8;
+        tmp /= 10;
+    }
+    buf[..pos].fill(b' ');
+    &buf[..width]
 }
 
 // helper for natural cmp
@@ -422,6 +485,20 @@ impl EntryTable {
         &self.arena[name_offset..name_offset + name_len as usize]
     }
 
+    fn get_alignments(&self) -> Option<(usize, usize)> {
+        let mut max_n_link = 0;
+        let mut max_size = 0;
+        for i in 0..self.index.len() {
+            if let Some(m) = &self.entries[i].metadata {
+                max_n_link = max_n_link.max(digit_count(m.n_link()));
+                max_size = max_size.max(digit_count(m.size()))
+            } else {
+                return None;
+            }
+        }
+        Some((max_n_link, max_size))
+    }
+
     fn sort_by_name(&mut self) {
         let arena = &self.arena;
         let entries = &self.entries;
@@ -487,6 +564,33 @@ impl Output {
         self.buffer.push_bytes(name);
         self.buffer.push_bytes(b"\n");
     }
+    //alignments could be none! need to handle
+    fn output_metadata_w_alignments(&mut self, m: &Metadata) {
+        if let Some((n_link_max, size_max)) = self.alignments {
+            self.buffer.push_bytes(&m.mode_bytes());
+            self.buffer.push_bytes(b"  ");
+            let mut nlink_buf: IntBytes = [b' '; 20];
+            let aligned = align_int(&mut nlink_buf, m.n_link(), n_link_max);
+            self.buffer.push_bytes(aligned);
+            self.buffer.push_bytes(b"  ");
+            if let Some(user) = m.user_bytes() {
+                self.buffer.push_bytes(user);
+                self.buffer.push_bytes(b"  ");
+            }
+            if let Some(group) = m.group_bytes() {
+                self.buffer.push_bytes(group);
+                self.buffer.push_bytes(b"  ");
+            }
+            let mut size_buf: IntBytes = [b' '; 20];
+            let aligned = align_int(&mut size_buf, m.size(), size_max);
+            self.buffer.push_bytes(aligned);
+            self.buffer.push_bytes(b"  ");
+            if let Some(lm_time) = m.last_modified_fmt() {
+                self.buffer.push_bytes(&lm_time);
+                self.buffer.push_bytes(b"  ");
+            }
+        }
+    }
 
     fn output_metadata(&mut self, m: &Metadata) {
         use core::fmt::Write;
@@ -539,7 +643,7 @@ impl Output {
         for i in 0..arena.index.len() {
             let entry = &arena.entries[arena.index[i]];
             if let Some(m) = &entry.metadata {
-                self.output_metadata(m);
+                self.output_metadata_w_alignments(m);
             }
             let e_type_str = entry.d_type.emoji_view();
             let name = arena.name_by_index(arena.index[i]);
@@ -625,7 +729,10 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
                 Sort::Name => arena.sort_by_name(),
                 Sort::Size => (),
             }
-            output.push_arena_long(arena);
+            output.alignments = arena.get_alignments();
+            if output.alignments.is_some() {
+                output.push_arena_long(arena);
+            }
         }
     }
     output.flush();
