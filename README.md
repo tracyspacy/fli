@@ -9,11 +9,17 @@ The purpose of this project is to build file-listing cli tool with a good readab
 Speed is priority: by default directory entries are streamed directly from `readdir()` to stdout without heap allocation.
 Since rust `std` contributes heavily to binary size, this project is `no_std` + `libc` (**it contains unsafe code blocks**).
 
-**Current binary size:**
+**Binary size:**
 - M series mac: 51 KB,
 - rpi zero w : 18 KB.
 
-Current scope of features is intentionally limited to simple retrieval of directory content without sorting and with natural sorting by name with -s flag. New features such as displaying metadata and sorting by size will be added soon.   
+#### Current display options:
+- `fli` : short (name and type) not sorted output  - direct stream, no heap allocation
+- `fli -s`: short (name and type) sorted by name output - uses heap allocation
+- `fli -l` : long (name, type, metadata ) not sorted output and fixed-sized alignment (20 chars for size and n_link) - direct stream, no heap allocation
+- `fli -l -s`: long (name, type, metadata ) sorted by name output and dynamic alignment - uses heap allocation.
+
+New display options may be added soon.
 
 
 
