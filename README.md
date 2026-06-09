@@ -1,5 +1,5 @@
 # fli
-cli tool to list directory content
+**fli** is a cli tool to list directory content
 
 <img width="160" height="160" alt="mascot" src="https://github.com/user-attachments/assets/a0742301-5891-49a3-a746-29fa4b87eabc" />
 
