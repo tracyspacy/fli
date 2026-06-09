@@ -602,29 +602,6 @@ impl Output {
         }
     }
 
-    fn output_metadata(&mut self, m: &Metadata) {
-        use core::fmt::Write;
-        self.buffer.push_bytes(&m.mode_bytes());
-        self.buffer.push_bytes(b"  ");
-        write!(self.buffer, "{}", m.n_link()).ok();
-        self.buffer.push_bytes(b"  ");
-        if let Some(user) = m.user_bytes() {
-            self.buffer.push_bytes(user);
-            self.buffer.push_bytes(b"  ");
-        }
-        if let Some(group) = m.group_bytes() {
-            self.buffer.push_bytes(group);
-            self.buffer.push_bytes(b"  ");
-        }
-        write!(self.buffer, "{}", m.size()).ok();
-        self.buffer.push_bytes(b"  ");
-
-        if let Some(lm_time) = m.last_modified_fmt() {
-            self.buffer.push_bytes(&lm_time);
-            self.buffer.push_bytes(b"  ");
-        }
-    }
-
     fn stream_short(&mut self, entry: DirEntry) {
         self.output_name_and_type(
             entry.name().to_bytes(),
@@ -634,7 +611,7 @@ impl Output {
     // add all
     fn stream_long(&mut self, entry: DirEntry) {
         if let Some(m) = Metadata::new(&entry) {
-            self.output_metadata(&m);
+            self.output_metadata_w_alignments(&m);
         }
         self.stream_short(entry);
     }
@@ -703,10 +680,15 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
             }
         }
         (Mode::Stream, Display::Long) => {
+            let alignments = Alignments {
+                n_link_width: MAX_INT_LEN,
+                size_width: MAX_INT_LEN,
+            };
             let Some(dir) = OpenDir::new(config.path) else {
                 //silently return, need to add error handling
                 return -1;
             };
+            output.alignments = Some(alignments);
             for entry in dir {
                 output.stream_long(entry);
             }
