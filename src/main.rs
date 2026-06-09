@@ -9,23 +9,9 @@ use core::ffi::c_char;
 use libc::{STDOUT_FILENO, fstatat, opendir, write};
 extern crate alloc;
 use alloc::{str, vec::Vec};
-
+mod global_alloc;
 const MAX_INT_LEN: usize = 20;
 type IntBytes = [u8; MAX_INT_LEN];
-
-#[global_allocator]
-static ALLOCATOR: LibcAllocator = LibcAllocator;
-
-struct LibcAllocator;
-
-unsafe impl core::alloc::GlobalAlloc for LibcAllocator {
-    unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        unsafe { libc::malloc(layout.size()) as *mut u8 }
-    }
-    unsafe fn dealloc(&self, ptr: *mut u8, _layout: core::alloc::Layout) {
-        unsafe { libc::free(ptr as *mut _) }
-    }
-}
 
 //4 kb sounds nice
 const BUFFER_SIZE: usize = 4096;
