@@ -1,0 +1,98 @@
+pub const MAX_INT_LEN: usize = 20;
+pub type IntBytes = [u8; MAX_INT_LEN];
+
+// helper - primitive dgit counter
+//helper
+#[inline]
+pub fn digit_count(mut n: usize) -> usize {
+    if n < 10 {
+        return 1;
+    }
+    if n < 100 {
+        return 2;
+    }
+    if n < 1_000 {
+        return 3;
+    }
+    if n < 10_000 {
+        return 4;
+    }
+    if n < 100_000 {
+        return 5;
+    }
+    if n < 1_000_000 {
+        return 6;
+    }
+    if n < 10_000_000 {
+        return 7;
+    }
+    if n < 100_000_000 {
+        return 8;
+    }
+    // should be less than u32:max len
+    if n < 1_000_000_000 {
+        return 9;
+    }
+
+    let mut c = 10;
+    while n >= 1_000_000_000 {
+        n /= 10;
+        c += 1;
+    }
+    c
+}
+
+// helper to align int in bytes array if max len 5 but int is 12 ie 2 [b' ',b' ',b' ',b'1',b'2']
+pub fn align_int(buf: &mut IntBytes, digit: usize, width: usize) -> &[u8] {
+    buf.fill(b' ');
+    if digit == 0 {
+        buf[width - 1] = b'0';
+        return &buf[..width];
+    }
+    let mut tmp = digit;
+    let mut pos = width;
+    while tmp > 0 {
+        pos -= 1;
+        // b'0' = [48] + res of % till 9=> ascii numbers 0-9
+        buf[pos] = b'0' + (tmp % 10) as u8;
+        tmp /= 10;
+    }
+    buf[..pos].fill(b' ');
+    &buf[..width]
+}
+
+// helper for natural cmp
+// TODO:
+// need to consider register! now Videos goes before fli
+//
+pub fn natural_cmp(left: &[u8], right: &[u8]) -> core::cmp::Ordering {
+    let mut i = 0;
+    let mut j = 0;
+    while i < left.len() && j < right.len() {
+        if left[i].is_ascii_digit() && right[j].is_ascii_digit() {
+            let left_digit_start = i; // to jump later
+            while i < left.len() && left[i].is_ascii_digit() {
+                i += 1;
+            }
+            let right_digit_start = j; // to jump later
+            while j < right.len() && right[j].is_ascii_digit() {
+                j += 1;
+            }
+            let left_digit = &left[left_digit_start..i];
+            let right_digit = &right[right_digit_start..j];
+            let left_digit_len = left_digit.len();
+            let right_digit_len = right_digit.len();
+            if left_digit_len != right_digit_len {
+                return left_digit_len.cmp(&right_digit_len);
+            }
+            return left_digit.cmp(right_digit);
+        } else {
+            if left[i] != right[j] {
+                return left[i].cmp(&right[j]);
+            }
+            i += 1;
+            j += 1;
+        }
+    }
+    left.len().cmp(&right.len())
+}
