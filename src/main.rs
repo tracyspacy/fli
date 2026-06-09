@@ -485,7 +485,7 @@ impl EntryTable {
         &self.arena[name_offset..name_offset + name_len as usize]
     }
 
-    fn get_alignments(&self) -> Option<(usize, usize)> {
+    fn get_alignments(&self) -> Option<Alignments> {
         let mut max_n_link = 0;
         let mut max_size = 0;
         for i in 0..self.index.len() {
@@ -496,7 +496,10 @@ impl EntryTable {
                 return None;
             }
         }
-        Some((max_n_link, max_size))
+        Some(Alignments {
+            n_link_width: max_n_link,
+            size_width: max_size,
+        })
     }
 
     fn sort_by_name(&mut self) {
@@ -545,14 +548,21 @@ impl Default for ReturnConfig {
     }
 }
 
+struct Alignments {
+    n_link_width: usize,
+    size_width: usize,
+    // user
+    // group
+}
+
 //probably replace aligmnets with struct {size,n_link,user,group} but for now size and n_link should be enough
 struct Output {
     buffer: Buffer,
-    alignments: Option<(usize, usize)>,
+    alignments: Option<Alignments>,
 }
 
 impl Output {
-    fn new(alignments: Option<(usize, usize)>) -> Self {
+    fn new(alignments: Option<Alignments>) -> Self {
         Self {
             buffer: Buffer::new(),
             alignments,
@@ -566,11 +576,11 @@ impl Output {
     }
     //alignments could be none! need to handle
     fn output_metadata_w_alignments(&mut self, m: &Metadata) {
-        if let Some((n_link_max, size_max)) = self.alignments {
+        if let Some(aligments) = &self.alignments {
             self.buffer.push_bytes(&m.mode_bytes());
             self.buffer.push_bytes(b"  ");
             let mut nlink_buf: IntBytes = [b' '; 20];
-            let aligned = align_int(&mut nlink_buf, m.n_link(), n_link_max);
+            let aligned = align_int(&mut nlink_buf, m.n_link(), aligments.n_link_width);
             self.buffer.push_bytes(aligned);
             self.buffer.push_bytes(b"  ");
             if let Some(user) = m.user_bytes() {
@@ -582,7 +592,7 @@ impl Output {
                 self.buffer.push_bytes(b"  ");
             }
             let mut size_buf: IntBytes = [b' '; 20];
-            let aligned = align_int(&mut size_buf, m.size(), size_max);
+            let aligned = align_int(&mut size_buf, m.size(), aligments.size_width);
             self.buffer.push_bytes(aligned);
             self.buffer.push_bytes(b"  ");
             if let Some(lm_time) = m.last_modified_fmt() {
