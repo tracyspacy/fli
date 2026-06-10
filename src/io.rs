@@ -1,8 +1,8 @@
 use crate::dir::{DirEntry, Metadata};
 use crate::entry_table::EntryTable;
 use crate::errors::{FliError, FliResult};
-use crate::output_config::Alignments;
-use crate::utils::{DEF_INT_BYTES, align_int};
+use crate::output_config::{Alignments, DEF_INT_BYTES};
+use crate::utils::align_int;
 use libc::{STDOUT_FILENO, write};
 //4 kb sounds nice
 const BUFFER_SIZE: usize = 4096;
@@ -77,7 +77,7 @@ impl Output {
             self.buffer.push_bytes(&m.mode_bytes());
             self.buffer.push_bytes(b"  ");
             let mut nlink_buf = DEF_INT_BYTES;
-            let aligned = align_int(&mut nlink_buf, m.n_link(), aligments.n_link_width);
+            let aligned = align_int(&mut nlink_buf, m.n_link(), &aligments.n_link_width);
             self.buffer.push_bytes(aligned);
             self.buffer.push_bytes(b"  ");
 
@@ -90,7 +90,7 @@ impl Output {
             self.buffer.push_bytes(b"  ");
 
             let mut size_buf = DEF_INT_BYTES;
-            let aligned = align_int(&mut size_buf, m.size(), aligments.size_width);
+            let aligned = align_int(&mut size_buf, m.size(), &aligments.size_width);
             self.buffer.push_bytes(aligned);
             self.buffer.push_bytes(b"  ");
             let lm_time = m.last_modified_fmt()?;

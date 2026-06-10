@@ -9,6 +9,8 @@ pub enum FliError {
     MissingAlignmentsError,
     GetpwuidError,
     GetgrgidError,
+    MissingMetadataError,
+    AlignmentWidthError,
 }
 
 impl FliError {
@@ -23,6 +25,8 @@ impl FliError {
             FliError::MissingAlignmentsError => 7,
             FliError::GetpwuidError => 8,
             FliError::GetgrgidError => 9,
+            FliError::MissingMetadataError => 10,
+            FliError::AlignmentWidthError => 11,
         }
     }
 }

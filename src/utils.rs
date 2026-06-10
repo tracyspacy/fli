@@ -1,6 +1,4 @@
-pub const MAX_INT_LEN: usize = 20;
-type IntBytes = [u8; MAX_INT_LEN];
-pub const DEF_INT_BYTES: IntBytes = [b' '; MAX_INT_LEN];
+use crate::output_config::{IntBytes, Width};
 
 // helper - primitive dgit counter
 //helper
@@ -44,7 +42,9 @@ pub fn digit_count(mut n: usize) -> usize {
 }
 
 // helper to align int in bytes array if max len 5 but int is 12 ie 2 [b' ',b' ',b' ',b'1',b'2']
-pub fn align_int(buf: &mut IntBytes, digit: usize, width: usize) -> &[u8] {
+
+pub fn align_int<'a>(buf: &'a mut IntBytes, digit: usize, width: &Width) -> &'a [u8] {
+    let width = width.get();
     buf.fill(b' ');
     if digit == 0 {
         buf[width - 1] = b'0';

@@ -14,8 +14,7 @@ use entry_table::EntryTable;
 mod errors;
 mod io;
 use io::Output;
-use output_config::{Alignments, Display, Mode, ReturnConfig, Sort};
-use utils::MAX_INT_LEN;
+use output_config::{Alignments, Display, MAX_INT_LEN, Mode, ReturnConfig, Sort, Width};
 
 use crate::errors::FliResult;
 extern crate alloc;
@@ -60,8 +59,8 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
         }
         (Mode::Stream, Display::Long) => {
             let alignments = Alignments {
-                n_link_width: MAX_INT_LEN,
-                size_width: MAX_INT_LEN,
+                n_link_width: Width::new(MAX_INT_LEN)?,
+                size_width: Width::new(MAX_INT_LEN)?,
             };
             let dir = OpenDir::new(config.path)?;
             output.alignments = Some(alignments);
@@ -91,7 +90,8 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
                 Sort::Name => arena.sort_by_name(),
                 Sort::Size => (),
             }
-            output.alignments = arena.get_alignments();
+            let alignments = arena.get_alignments()?;
+            output.alignments = Some(alignments);
             output.push_arena_long(arena)?;
         }
     }

@@ -1,6 +1,6 @@
 use crate::dir::{DirEntry, EntryType, Metadata};
-use crate::errors::FliResult;
-use crate::output_config::Alignments;
+use crate::errors::{FliError, FliResult};
+use crate::output_config::{Alignments, Width};
 use crate::utils::{digit_count, natural_cmp};
 use alloc::vec::Vec;
 ///// arean
@@ -73,7 +73,7 @@ impl EntryTable {
         &self.arena[name_offset..name_offset + name_len as usize]
     }
 
-    pub fn get_alignments(&self) -> Option<Alignments> {
+    pub fn get_alignments(&self) -> FliResult<Alignments> {
         let mut max_n_link = 0;
         let mut max_size = 0;
         for i in 0..self.index.len() {
@@ -81,12 +81,12 @@ impl EntryTable {
                 max_n_link = max_n_link.max(digit_count(m.n_link()));
                 max_size = max_size.max(digit_count(m.size()))
             } else {
-                return None;
+                return Err(FliError::MissingMetadataError);
             }
         }
-        Some(Alignments {
-            n_link_width: max_n_link,
-            size_width: max_size,
+        Ok(Alignments {
+            n_link_width: Width::new(max_n_link)?,
+            size_width: Width::new(max_size)?,
         })
     }
 
