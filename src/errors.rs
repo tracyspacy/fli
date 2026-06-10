@@ -8,6 +8,7 @@ pub enum FliError {
     StrFTimeError,
     MissingAlignmentsError,
     GetpwuidError,
+    GetgrgidError,
 }
 
 impl FliError {
@@ -21,6 +22,7 @@ impl FliError {
             FliError::StrFTimeError => 6,
             FliError::MissingAlignmentsError => 7,
             FliError::GetpwuidError => 8,
+            FliError::GetgrgidError => 9,
         }
     }
 }

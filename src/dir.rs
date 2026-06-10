@@ -214,13 +214,13 @@ impl Metadata {
             Ok(unsafe { core::ffi::CStr::from_ptr((*pw).pw_name).to_bytes() })
         }
     }
-    pub fn group_bytes(&self) -> Option<&[u8]> {
+    pub fn group_bytes(&self) -> FliResult<&[u8]> {
         let gr = unsafe { libc::getgrgid(self.0.st_gid) };
         // can return null pointer
         if gr.is_null() {
-            None
+            return Err(FliError::GetgrgidError);
         } else {
-            Some(unsafe { core::ffi::CStr::from_ptr((*gr).gr_name).to_bytes() })
+            Ok(unsafe { core::ffi::CStr::from_ptr((*gr).gr_name).to_bytes() })
         }
     }
 
