@@ -1,3 +1,4 @@
+#[repr(u8)]
 pub enum FliError {
     OpenDirError,
     DirFdError,
@@ -6,6 +7,7 @@ pub enum FliError {
     LocalTimeError,
     StrFTimeError,
     MissingAlignmentsError,
+    GetpwuidError,
 }
 
 impl FliError {
@@ -18,6 +20,7 @@ impl FliError {
             FliError::LocalTimeError => 5,
             FliError::StrFTimeError => 6,
             FliError::MissingAlignmentsError => 7,
+            FliError::GetpwuidError => 8,
         }
     }
 }

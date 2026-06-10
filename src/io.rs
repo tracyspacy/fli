@@ -80,10 +80,10 @@ impl Output {
             let aligned = align_int(&mut nlink_buf, m.n_link(), aligments.n_link_width);
             self.buffer.push_bytes(aligned);
             self.buffer.push_bytes(b"  ");
-            if let Some(user) = m.user_bytes() {
-                self.buffer.push_bytes(user);
-                self.buffer.push_bytes(b"  ");
-            }
+            let user = m.user_bytes()?;
+            self.buffer.push_bytes(user);
+            self.buffer.push_bytes(b"  ");
+
             if let Some(group) = m.group_bytes() {
                 self.buffer.push_bytes(group);
                 self.buffer.push_bytes(b"  ");

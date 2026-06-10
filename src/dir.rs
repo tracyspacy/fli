@@ -205,13 +205,13 @@ impl Metadata {
     }
 
     // https://www.man7.org/linux/man-pages/man3/getpwuid.3p.html
-    pub fn user_bytes(&self) -> Option<&[u8]> {
+    pub fn user_bytes(&self) -> FliResult<&[u8]> {
         let pw = unsafe { libc::getpwuid(self.0.st_uid) };
         // can return null pointer
         if pw.is_null() {
-            None
+            return Err(FliError::GetpwuidError);
         } else {
-            Some(unsafe { core::ffi::CStr::from_ptr((*pw).pw_name).to_bytes() })
+            Ok(unsafe { core::ffi::CStr::from_ptr((*pw).pw_name).to_bytes() })
         }
     }
     pub fn group_bytes(&self) -> Option<&[u8]> {
