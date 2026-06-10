@@ -1,3 +1,4 @@
+use crate::errors::{FliError, FliResult};
 use core::ffi::c_char;
 /*
 *opendir()* function:
@@ -20,19 +21,19 @@ On success, dirfd() returns a file descriptor (a nonnegative integer).  On error
 
 impl OpenDir {
     // how correct it is , if default is just same folder
-    pub fn new(path: *const c_char) -> Option<Self> {
+    pub fn new(path: *const c_char) -> FliResult<Self> {
         let dir = unsafe { libc::opendir(path) };
         if dir.is_null() {
-            return None;
+            return Err(FliError::OpenDirError);
         }
         let fd = unsafe { libc::dirfd(dir) };
         if fd.is_negative() {
             // explicitely closing dir
-            // probably overkill, since main exits if new() returns none
+            // probably overkill,
             unsafe { libc::closedir(dir) };
-            return None;
+            return Err(FliError::DirFdError);
         }
-        Some(Self { dir, fd })
+        Ok(Self { dir, fd })
     }
 }
 

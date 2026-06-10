@@ -11,22 +11,22 @@ mod output_config;
 mod utils;
 use dir::OpenDir;
 use entry_table::EntryTable;
+mod errors;
 mod io;
-
 use io::Output;
 use output_config::{Alignments, Display, Mode, ReturnConfig, Sort};
 use utils::MAX_INT_LEN;
+
+use crate::errors::FliResult;
 extern crate alloc;
 
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
-    loop {}
+    unsafe { libc::abort() }
 }
 
-// so seems libc handles linker and there is no entry hassle
-#[unsafe(no_mangle)]
-fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
+fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
     let mut config = ReturnConfig::default();
     let mut sort: Option<Sort> = None;
 
@@ -50,10 +50,7 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
 
     match (config.mode, config.display) {
         (Mode::Stream, Display::Short) => {
-            let Some(dir) = OpenDir::new(config.path) else {
-                //silently return, need to add error handling
-                return -1;
-            };
+            let dir = OpenDir::new(config.path)?;
             //https://www.man7.org/linux/man-pages/man3/readdir.3.html
             // here we need to be very careful , readdir() returns raw pointer to the next entry,
             // so after each iteration, we can consider it as invalid and should not use after
@@ -66,10 +63,7 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
                 n_link_width: MAX_INT_LEN,
                 size_width: MAX_INT_LEN,
             };
-            let Some(dir) = OpenDir::new(config.path) else {
-                //silently return, need to add error handling
-                return -1;
-            };
+            let dir = OpenDir::new(config.path)?;
             output.alignments = Some(alignments);
             for entry in dir {
                 output.stream_long(entry);
@@ -77,10 +71,7 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
         }
         (Mode::Alloc(sort), Display::Short) => {
             let mut arena = EntryTable::new();
-            let Some(dir) = OpenDir::new(config.path) else {
-                //silently return, need to add error handling
-                return -1;
-            };
+            let dir = OpenDir::new(config.path)?;
             for entry in dir {
                 arena.push_short(entry);
             }
@@ -92,10 +83,7 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
         }
         (Mode::Alloc(sort), Display::Long) => {
             let mut arena = EntryTable::new();
-            let Some(dir) = OpenDir::new(config.path) else {
-                //silently return, need to add error handling
-                return -1;
-            };
+            let dir = OpenDir::new(config.path)?;
             for entry in dir {
                 arena.push_long(entry);
             }
@@ -110,5 +98,15 @@ fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
         }
     }
     output.flush();
-    0
+    Ok(())
+}
+
+// so seems libc handles linker and there is no entry hassle
+#[unsafe(no_mangle)]
+fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
+    match run(argc, argv) {
+        Ok(()) => 0,
+        Err(e) => e.to_exit_code(),
+        //add error printing here
+    }
 }
