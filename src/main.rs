@@ -92,9 +92,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
                 Sort::Size => (),
             }
             output.alignments = arena.get_alignments();
-            if output.alignments.is_some() {
-                output.push_arena_long(arena);
-            }
+            output.push_arena_long(arena)?;
         }
     }
     output.flush();

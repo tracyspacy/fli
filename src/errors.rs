@@ -3,6 +3,9 @@ pub enum FliError {
     DirFdError,
     FStatAtError,
     NameLenError,
+    LocalTimeError,
+    StrFTimeError,
+    MissingAlignmentsError,
 }
 
 impl FliError {
@@ -12,6 +15,9 @@ impl FliError {
             FliError::DirFdError => 2,
             FliError::FStatAtError => 3,
             FliError::NameLenError => 4,
+            FliError::LocalTimeError => 5,
+            FliError::StrFTimeError => 6,
+            FliError::MissingAlignmentsError => 7,
         }
     }
 }

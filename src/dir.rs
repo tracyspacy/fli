@@ -173,7 +173,7 @@ impl Metadata {
     }
     // need to format properly, not as timestamp
     // clippy!! where are you my Lord and Savior?!
-    pub fn last_modified_fmt(&self) -> Option<[u8; 15]> {
+    pub fn last_modified_fmt(&self) -> FliResult<[u8; 15]> {
         //example output 06/06/26 16:11 ie 14 bytes + null byte
         // need to consider this then pushing to buffer
         let mut char_buf: [u8; 15] = [0u8; 15];
@@ -184,7 +184,7 @@ impl Metadata {
             // can return null
             let tm_ptr = libc::localtime_r(mtime, tm.as_mut_ptr());
             if tm_ptr.is_null() {
-                return None;
+                return Err(FliError::LocalTimeError);
             }
             let tm_ref = tm.assume_init_ref();
             //https://www.man7.org/linux/man-pages/man3/strftime.3.html
@@ -198,10 +198,10 @@ impl Metadata {
             );
             // can be 0, so size is exceed the buffer size
             if writer == 0 {
-                return None;
+                return Err(FliError::StrFTimeError);
             }
         };
-        Some(char_buf)
+        Ok(char_buf)
     }
 
     // https://www.man7.org/linux/man-pages/man3/getpwuid.3p.html

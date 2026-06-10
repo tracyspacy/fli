@@ -1,6 +1,6 @@
 use crate::dir::{DirEntry, Metadata};
 use crate::entry_table::EntryTable;
-use crate::errors::FliResult;
+use crate::errors::{FliError, FliResult};
 use crate::output_config::Alignments;
 use crate::utils::{DEF_INT_BYTES, align_int};
 use libc::{STDOUT_FILENO, write};
@@ -72,7 +72,7 @@ impl Output {
         self.buffer.push_bytes(b"\n");
     }
     //alignments could be none! need to handle
-    fn output_metadata_w_alignments(&mut self, m: &Metadata) {
+    fn output_metadata_w_alignments(&mut self, m: &Metadata) -> FliResult<()> {
         if let Some(aligments) = &self.alignments {
             self.buffer.push_bytes(&m.mode_bytes());
             self.buffer.push_bytes(b"  ");
@@ -92,11 +92,13 @@ impl Output {
             let aligned = align_int(&mut size_buf, m.size(), aligments.size_width);
             self.buffer.push_bytes(aligned);
             self.buffer.push_bytes(b"  ");
-            if let Some(lm_time) = m.last_modified_fmt() {
-                self.buffer.push_bytes(&lm_time);
-                self.buffer.push_bytes(b"  ");
-            }
+            let lm_time = m.last_modified_fmt()?;
+            self.buffer.push_bytes(&lm_time);
+            self.buffer.push_bytes(b"  ");
+        } else {
+            return Err(FliError::MissingAlignmentsError);
         }
+        Ok(())
     }
 
     pub fn stream_short(&mut self, entry: DirEntry) {
@@ -108,7 +110,7 @@ impl Output {
 
     pub fn stream_long(&mut self, entry: DirEntry) -> FliResult<()> {
         let metadata = Metadata::new(&entry)?;
-        self.output_metadata_w_alignments(&metadata);
+        self.output_metadata_w_alignments(&metadata)?;
         self.stream_short(entry);
         Ok(())
     }
@@ -123,16 +125,17 @@ impl Output {
     }
 
     //prints short if none, need to decided if return as it is or handle error?
-    pub fn push_arena_long(&mut self, arena: EntryTable) {
+    pub fn push_arena_long(&mut self, arena: EntryTable) -> FliResult<()> {
         for i in 0..arena.index.len() {
             let entry = &arena.entries[arena.index[i]];
             if let Some(m) = &entry.metadata {
-                self.output_metadata_w_alignments(m);
+                self.output_metadata_w_alignments(m)?;
             }
             let e_type_str = entry.d_type.emoji_view();
             let name = arena.name_by_index(arena.index[i]);
             self.output_name_and_type(name, e_type_str.as_bytes());
         }
+        Ok(())
     }
     pub fn flush(&mut self) {
         self.buffer.flush();
