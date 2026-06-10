@@ -69,7 +69,7 @@ pub struct DirEntry {
     dirfd: i32,
     dirent: *mut libc::dirent,
 }
-
+#[repr(u8)]
 pub enum EntryType {
     Directory,
     RegularFile,
