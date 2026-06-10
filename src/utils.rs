@@ -100,6 +100,8 @@ pub fn natural_cmp(left: &[u8], right: &[u8]) -> core::cmp::Ordering {
 
 #[cfg(test)]
 mod test {
+    use crate::output_config::DEF_INT_BYTES;
+
     use super::*;
     const DIGIT_AND_LEN: [(usize, usize); 7] = [
         (0, 1),
@@ -110,10 +112,27 @@ mod test {
         (200_000_000, 9),
         (2_000_000_000, 10),
     ];
+
+    const INT_WIDTH_RES: [(usize, usize, &[u8]); 4] = [
+        (0, 5, b"    0"),
+        (1, 5, b"    1"),
+        (12345, 5, b"12345"),
+        (1, 20, b"                   1"),
+    ];
+
     #[test]
     fn digit_count_test() {
         for (digit, len) in DIGIT_AND_LEN {
             assert_eq!(digit_count(digit), len, "wrong digit count {}", digit);
+        }
+    }
+    #[test]
+    fn align_int_test() {
+        for (digit, width, right) in INT_WIDTH_RES {
+            let mut buf = DEF_INT_BYTES;
+            let w = Width::new(width).unwrap();
+            let left = align_int(&mut buf, digit, &w);
+            assert_eq!(left, right, "wrong aligned {}", digit);
         }
     }
 }
