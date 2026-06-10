@@ -120,6 +120,15 @@ mod test {
         (1, 20, b"                   1"),
     ];
 
+    const NAMES_CMP: [(&[u8], &[u8], core::cmp::Ordering); 6] = [
+        (b"test", b"test", core::cmp::Ordering::Equal),
+        (b"test1", b"test2", core::cmp::Ordering::Less),
+        (b"test100", b"test9", core::cmp::Ordering::Greater),
+        (b"a", b"aa", core::cmp::Ordering::Less),
+        (b"aaaa", b"bbbb", core::cmp::Ordering::Less),
+        (b"abcd", b"efg", core::cmp::Ordering::Less),
+    ];
+
     #[test]
     fn digit_count_test() {
         for (digit, len) in DIGIT_AND_LEN {
@@ -133,6 +142,14 @@ mod test {
             let w = Width::new(width).unwrap();
             let left = align_int(&mut buf, digit, &w);
             assert_eq!(left, right, "wrong aligned {}", digit);
+        }
+    }
+
+    #[test]
+    fn natural_cmp_test() {
+        for (name_l, name_r, res) in NAMES_CMP {
+            let left = natural_cmp(name_l, name_r);
+            assert_eq!(left, res, "wrong cmp {:?}", str::from_utf8(name_l),)
         }
     }
 }
