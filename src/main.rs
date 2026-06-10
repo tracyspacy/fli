@@ -66,7 +66,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             let dir = OpenDir::new(config.path)?;
             output.alignments = Some(alignments);
             for entry in dir {
-                output.stream_long(entry);
+                output.stream_long(entry)?;
             }
         }
         (Mode::Alloc(sort), Display::Short) => {
@@ -85,7 +85,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             let mut arena = EntryTable::new();
             let dir = OpenDir::new(config.path)?;
             for entry in dir {
-                arena.push_long(entry);
+                arena.push_long(entry)?;
             }
             match sort {
                 Sort::Name => arena.sort_by_name(),

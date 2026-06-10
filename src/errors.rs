@@ -1,6 +1,8 @@
 pub enum FliError {
     OpenDirError,
     DirFdError,
+    FStatAtError,
+    NameLenError,
 }
 
 impl FliError {
@@ -8,6 +10,8 @@ impl FliError {
         match self {
             FliError::OpenDirError => 1,
             FliError::DirFdError => 2,
+            FliError::FStatAtError => 3,
+            FliError::NameLenError => 4,
         }
     }
 }

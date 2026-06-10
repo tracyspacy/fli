@@ -1,4 +1,5 @@
 use crate::dir::{DirEntry, EntryType, Metadata};
+use crate::errors::FliResult;
 use crate::output_config::Alignments;
 use crate::utils::{digit_count, natural_cmp};
 use alloc::vec::Vec;
@@ -44,25 +45,25 @@ impl EntryTable {
         self.index.push(idx);
     }
 
-    pub fn push_long(&mut self, entry: DirEntry) {
+    pub fn push_long(&mut self, entry: DirEntry) -> FliResult<()> {
         let name = entry.name().to_bytes();
         let name_len = name.len();
         if name_len > 255 {
-            return; // maybe truncate?
+            return Err(crate::errors::FliError::NameLenError); // maybe truncate?
         }
-
         let offset = self.arena.len();
         self.arena.extend_from_slice(name);
         let idx = self.entries.len();
         // make it better, need error if none
-        let metadata = Metadata::new(&entry);
+        let metadata = Metadata::new(&entry)?;
         self.entries.push(Entry {
             name_offset: offset as u32,
             name_len: name_len as u8,
             d_type: entry.entry_type(),
-            metadata,
+            metadata: Some(metadata),
         });
         self.index.push(idx);
+        Ok(())
     }
 
     pub fn name_by_index(&self, index: usize) -> &[u8] {

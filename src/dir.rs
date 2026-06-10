@@ -151,14 +151,16 @@ impl Iterator for OpenDir {
 pub struct Metadata(libc::stat);
 #[allow(unused)]
 impl Metadata {
-    pub fn new(entry: &DirEntry) -> Option<Self> {
+    pub fn new(entry: &DirEntry) -> FliResult<Self> {
         let mut stat_buf = core::mem::MaybeUninit::<libc::stat>::uninit();
         let name = unsafe { (*entry.dirent).d_name };
+        //  https://man.freebsd.org/cgi/man.cgi?query=fstatat&sektion=2&n=1
+        // can return -1 ie error
         let s = unsafe { libc::fstatat(entry.dirfd, name.as_ptr(), stat_buf.as_mut_ptr(), 0) };
         if s == 0 {
-            Some(Self(unsafe { stat_buf.assume_init() }))
+            Ok(Self(unsafe { stat_buf.assume_init() }))
         } else {
-            None
+            Err(FliError::FStatAtError)
         }
     }
     // to make it cross compile eg arm-unknown-linux-gnueabihf size is i32 not i64

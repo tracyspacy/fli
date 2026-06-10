@@ -1,5 +1,6 @@
 use crate::dir::{DirEntry, Metadata};
 use crate::entry_table::EntryTable;
+use crate::errors::FliResult;
 use crate::output_config::Alignments;
 use crate::utils::{DEF_INT_BYTES, align_int};
 use libc::{STDOUT_FILENO, write};
@@ -104,12 +105,12 @@ impl Output {
             entry.entry_type().emoji_view().as_bytes(),
         );
     }
-    // add all
-    pub fn stream_long(&mut self, entry: DirEntry) {
-        if let Some(m) = Metadata::new(&entry) {
-            self.output_metadata_w_alignments(&m);
-        }
+
+    pub fn stream_long(&mut self, entry: DirEntry) -> FliResult<()> {
+        let metadata = Metadata::new(&entry)?;
+        self.output_metadata_w_alignments(&metadata);
         self.stream_short(entry);
+        Ok(())
     }
 
     pub fn push_arena_short(&mut self, arena: EntryTable) {
