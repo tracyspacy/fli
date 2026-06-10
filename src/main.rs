@@ -1,9 +1,8 @@
 #![no_std]
-#![no_main]
+#![cfg_attr(not(test), no_main)]
 
 // TODO:
 // - add tests
-
 mod dir;
 mod entry_table;
 mod global_alloc;
@@ -100,7 +99,8 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
 }
 
 // so seems libc handles linker and there is no entry hassle
-#[unsafe(no_mangle)]
+
+#[cfg_attr(not(test), unsafe(no_mangle))]
 fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
     match run(argc, argv) {
         Ok(()) => 0,

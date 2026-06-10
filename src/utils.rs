@@ -33,7 +33,7 @@ pub fn digit_count(mut n: usize) -> usize {
         return 9;
     }
 
-    let mut c = 10;
+    let mut c = 9;
     while n >= 1_000_000_000 {
         n /= 10;
         c += 1;
@@ -96,4 +96,24 @@ pub fn natural_cmp(left: &[u8], right: &[u8]) -> core::cmp::Ordering {
         }
     }
     left.len().cmp(&right.len())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    const DIGIT_AND_LEN: [(usize, usize); 7] = [
+        (0, 1),
+        (9, 1),
+        (99, 2),
+        (100, 3),
+        (1234, 4),
+        (200_000_000, 9),
+        (2_000_000_000, 10),
+    ];
+    #[test]
+    fn digit_count_test() {
+        for (digit, len) in DIGIT_AND_LEN {
+            assert_eq!(digit_count(digit), len, "wrong digit count {}", digit);
+        }
+    }
 }
