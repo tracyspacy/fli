@@ -1,5 +1,6 @@
 pub const MAX_INT_LEN: usize = 20;
-pub type IntBytes = [u8; MAX_INT_LEN];
+type IntBytes = [u8; MAX_INT_LEN];
+pub const DEF_INT_BYTES: IntBytes = [b' '; MAX_INT_LEN];
 
 // helper - primitive dgit counter
 //helper
