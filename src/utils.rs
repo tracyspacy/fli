@@ -127,6 +127,7 @@ mod test {
         (b"a", b"aa", core::cmp::Ordering::Less),
         (b"aaaa", b"bbbb", core::cmp::Ordering::Less),
         (b"abcd", b"efg", core::cmp::Ordering::Less),
+        //(b"Video", b"fli", core::cmp::Ordering::Greater), - known issue!
     ];
 
     #[test]
