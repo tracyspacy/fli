@@ -2,7 +2,5 @@
 linker = "arm-unknown-linux-gnueabihf-gcc"
 rustflags = [
     "-C", "panic=abort",
-    "-C", "link-arg=-lstdc++",
-    "-C", "link-arg=-lsupc++",
     "-C", "link-arg=-lgcc_s"
 ]
