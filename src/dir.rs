@@ -209,7 +209,7 @@ impl Metadata {
         let pw = unsafe { libc::getpwuid(self.0.st_uid) };
         // can return null pointer
         if pw.is_null() {
-            return Err(FliError::GetpwuidError);
+            Err(FliError::GetpwuidError)
         } else {
             Ok(unsafe { core::ffi::CStr::from_ptr((*pw).pw_name).to_bytes() })
         }
@@ -218,7 +218,7 @@ impl Metadata {
         let gr = unsafe { libc::getgrgid(self.0.st_gid) };
         // can return null pointer
         if gr.is_null() {
-            return Err(FliError::GetgrgidError);
+            Err(FliError::GetgrgidError)
         } else {
             Ok(unsafe { core::ffi::CStr::from_ptr((*gr).gr_name).to_bytes() })
         }

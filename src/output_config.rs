@@ -39,7 +39,7 @@ pub struct Width(usize);
 impl Width {
     pub fn new(val: usize) -> FliResult<Self> {
         if val <= MAX_INT_LEN {
-            return Ok(Self(val));
+            Ok(Self(val))
         } else {
             Err(crate::errors::FliError::AlignmentWidthError)
         }
