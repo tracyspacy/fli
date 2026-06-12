@@ -1,5 +1,8 @@
 use crate::dir::{DirEntry, EntryType, Metadata};
-use crate::errors::{FliError, FliResult};
+use crate::errors::{
+    FliError::{MissingMetadata, NameLen},
+    FliResult,
+};
 use crate::output_config::{Alignments, Width};
 use crate::utils::{digit_count, natural_cmp};
 use alloc::vec::Vec;
@@ -49,7 +52,7 @@ impl EntryTable {
         let name = entry.name().to_bytes();
         let name_len = name.len();
         if name_len > 255 {
-            return Err(crate::errors::FliError::NameLenError); // maybe truncate?
+            return Err(NameLen); // maybe truncate?
         }
         let offset = self.arena.len();
         self.arena.extend_from_slice(name);
@@ -81,7 +84,7 @@ impl EntryTable {
                 max_n_link = max_n_link.max(digit_count(m.n_link()));
                 max_size = max_size.max(digit_count(m.size()))
             } else {
-                return Err(FliError::MissingMetadataError);
+                return Err(MissingMetadata);
             }
         }
         Ok(Alignments {

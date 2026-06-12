@@ -1,4 +1,7 @@
-use crate::errors::{FliError, FliResult};
+use crate::errors::{
+    FliError::{DirFd, FStatAt, Getgrgid, Getpwuid, LocalTime, OpenDirError, StrFTime},
+    FliResult,
+};
 use core::ffi::c_char;
 /*
 *opendir()* function:
@@ -24,14 +27,14 @@ impl OpenDir {
     pub fn new(path: *const c_char) -> FliResult<Self> {
         let dir = unsafe { libc::opendir(path) };
         if dir.is_null() {
-            return Err(FliError::OpenDirError);
+            return Err(OpenDirError);
         }
         let fd = unsafe { libc::dirfd(dir) };
         if fd.is_negative() {
             // explicitely closing dir
             // probably overkill,
             unsafe { libc::closedir(dir) };
-            return Err(FliError::DirFdError);
+            return Err(DirFd);
         }
         Ok(Self { dir, fd })
     }
@@ -160,7 +163,7 @@ impl Metadata {
         if s == 0 {
             Ok(Self(unsafe { stat_buf.assume_init() }))
         } else {
-            Err(FliError::FStatAtError)
+            Err(FStatAt)
         }
     }
     // to make it cross compile eg arm-unknown-linux-gnueabihf size is i32 not i64
@@ -184,7 +187,7 @@ impl Metadata {
             // can return null
             let tm_ptr = libc::localtime_r(mtime, tm.as_mut_ptr());
             if tm_ptr.is_null() {
-                return Err(FliError::LocalTimeError);
+                return Err(LocalTime);
             }
             let tm_ref = tm.assume_init_ref();
             //https://www.man7.org/linux/man-pages/man3/strftime.3.html
@@ -198,7 +201,7 @@ impl Metadata {
             );
             // can be 0, so size is exceed the buffer size
             if writer == 0 {
-                return Err(FliError::StrFTimeError);
+                return Err(StrFTime);
             }
         };
         Ok(char_buf)
@@ -209,7 +212,7 @@ impl Metadata {
         let pw = unsafe { libc::getpwuid(self.0.st_uid) };
         // can return null pointer
         if pw.is_null() {
-            Err(FliError::GetpwuidError)
+            Err(Getpwuid)
         } else {
             Ok(unsafe { core::ffi::CStr::from_ptr((*pw).pw_name).to_bytes() })
         }
@@ -218,7 +221,7 @@ impl Metadata {
         let gr = unsafe { libc::getgrgid(self.0.st_gid) };
         // can return null pointer
         if gr.is_null() {
-            Err(FliError::GetgrgidError)
+            Err(Getgrgid)
         } else {
             Ok(unsafe { core::ffi::CStr::from_ptr((*gr).gr_name).to_bytes() })
         }

@@ -1,6 +1,6 @@
 use crate::dir::{DirEntry, Metadata};
 use crate::entry_table::EntryTable;
-use crate::errors::{FliError, FliResult};
+use crate::errors::{FliError::MissingAlignments, FliResult};
 use crate::output_config::{Alignments, DEF_INT_BYTES};
 use crate::utils::align_int;
 use libc::{STDOUT_FILENO, write};
@@ -97,7 +97,7 @@ impl Output {
             self.buffer.push_bytes(&lm_time);
             self.buffer.push_bytes(b"  ");
         } else {
-            return Err(FliError::MissingAlignmentsError);
+            return Err(MissingAlignments);
         }
         Ok(())
     }

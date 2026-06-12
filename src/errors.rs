@@ -2,15 +2,15 @@
 #[derive(Debug)]
 pub enum FliError {
     OpenDirError,
-    DirFdError,
-    FStatAtError,
-    NameLenError,
-    LocalTimeError,
-    StrFTimeError,
-    MissingAlignmentsError,
-    GetpwuidError,
-    GetgrgidError,
-    MissingMetadataError,
+    DirFd,
+    FStatAt,
+    NameLen,
+    LocalTime,
+    StrFTime,
+    MissingAlignments,
+    Getpwuid,
+    Getgrgid,
+    MissingMetadata,
     AlignmentWidthError,
 }
 
@@ -18,15 +18,15 @@ impl FliError {
     pub fn to_exit_code(&self) -> i32 {
         match self {
             FliError::OpenDirError => 1,
-            FliError::DirFdError => 2,
-            FliError::FStatAtError => 3,
-            FliError::NameLenError => 4,
-            FliError::LocalTimeError => 5,
-            FliError::StrFTimeError => 6,
-            FliError::MissingAlignmentsError => 7,
-            FliError::GetpwuidError => 8,
-            FliError::GetgrgidError => 9,
-            FliError::MissingMetadataError => 10,
+            FliError::DirFd => 2,
+            FliError::FStatAt => 3,
+            FliError::NameLen => 4,
+            FliError::LocalTime => 5,
+            FliError::StrFTime => 6,
+            FliError::MissingAlignments => 7,
+            FliError::Getpwuid => 8,
+            FliError::Getgrgid => 9,
+            FliError::MissingMetadata => 10,
             FliError::AlignmentWidthError => 11,
         }
     }

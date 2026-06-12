@@ -1,4 +1,4 @@
-use crate::errors::FliResult;
+use crate::errors::{FliError::AlignmentWidthError, FliResult};
 
 pub const MAX_INT_LEN: usize = 20;
 pub type IntBytes = [u8; MAX_INT_LEN];
@@ -41,7 +41,7 @@ impl Width {
         if val <= MAX_INT_LEN {
             Ok(Self(val))
         } else {
-            Err(crate::errors::FliError::AlignmentWidthError)
+            Err(AlignmentWidthError)
         }
     }
     pub fn get(&self) -> usize {
