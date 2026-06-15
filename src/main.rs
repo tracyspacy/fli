@@ -1,8 +1,7 @@
 #![no_std]
 #![cfg_attr(not(test), no_main)]
 
-// TODO:
-// - add tests
+mod cache;
 mod dir;
 mod entry_table;
 mod global_alloc;
