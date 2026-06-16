@@ -19,13 +19,6 @@ fn write_bytes(bytes: &[u8]) {
     }
 }
 
-/* impl core::fmt::Write for Buffer {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        self.push_bytes(s.as_bytes());
-        Ok(())
-    }
-} */
-
 struct Buffer {
     buffer: [u8; BUFFER_SIZE],
     len: usize,
