@@ -207,6 +207,10 @@ impl Metadata {
         Ok(char_buf)
     }
 
+    pub fn get_pw_uid(&self) -> usize {
+        self.0.st_uid as usize
+    }
+
     // https://www.man7.org/linux/man-pages/man3/getpwuid.3p.html
     pub fn user_bytes(&self) -> FliResult<&[u8]> {
         let pw = unsafe { libc::getpwuid(self.0.st_uid) };
@@ -217,6 +221,11 @@ impl Metadata {
             Ok(unsafe { core::ffi::CStr::from_ptr((*pw).pw_name).to_bytes() })
         }
     }
+
+    pub fn get_gr_gid(&self) -> usize {
+        self.0.st_gid as usize
+    }
+
     pub fn group_bytes(&self) -> FliResult<&[u8]> {
         let gr = unsafe { libc::getgrgid(self.0.st_gid) };
         // can return null pointer
