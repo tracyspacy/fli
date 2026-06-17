@@ -207,4 +207,13 @@ mod test {
             Err(FliError::EntryAlreadyCachedErr)
         ));
     }
+    // test ,that there isno trailing 0s
+    #[test]
+    fn get_len_test() {
+        let mut cache: ByteCache<5, 32> = ByteCache::new();
+        cache.insert(1, b"one").expect("insertion failed");
+        let v1 = cache.get(1).unwrap();
+        assert_eq!(v1.len(), b"one".len());
+        assert_eq!(v1, b"one");
+    }
 }
