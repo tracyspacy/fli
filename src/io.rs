@@ -88,7 +88,7 @@ impl Output {
             let name_bytes = if let Some(cached_name) = self.names_cache.get(uid) {
                 cached_name
             } else {
-                let user = m.group_bytes()?;
+                let user = m.user_bytes()?;
                 self.names_cache.insert(uid, user)?;
                 user
             };
