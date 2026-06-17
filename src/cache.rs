@@ -13,9 +13,23 @@ premises:
 
 use crate::errors::{FliError::EntryAlreadyCachedErr, FliResult};
 
+struct CacheEntry<const S: usize> {
+    key: usize,
+    value: [u8; S],
+    // size: u8,
+}
+
+impl<const S: usize> Default for CacheEntry<S> {
+    fn default() -> Self {
+        Self {
+            key: 0,
+            value: [0; S],
+        }
+    }
+}
+
 pub struct ByteCache<const L: usize, const S: usize> {
-    keys: [usize; L],
-    values: [[u8; S]; L],
+    entries: [CacheEntry<S>; L],
     traverse: [usize; L],
     len: usize,
 }
@@ -23,8 +37,7 @@ pub struct ByteCache<const L: usize, const S: usize> {
 impl<const L: usize, const S: usize> ByteCache<L, S> {
     pub fn new() -> Self {
         Self {
-            keys: [0usize; L],
-            values: [[0u8; S]; L],
+            entries: core::array::from_fn(|_| CacheEntry::default()),
             traverse: core::array::from_fn(|i| i),
             len: 0,
         }
@@ -48,28 +61,28 @@ impl<const L: usize, const S: usize> ByteCache<L, S> {
         if self.len() == 0 {
             return;
         }
-        let last = self.len() - 1;
-        let idx = self.traverse[last];
-        self.keys[idx] = 0usize;
-        self.values[idx] = [0u8; S];
+        let idx = self.traverse[self.len() - 1];
+        self.entries[idx].key = 0usize;
+        self.entries[idx].value = [0u8; S];
         self.len -= 1;
     }
     // not getting false positive on zeroed values since loop is based on len
     pub fn get(&mut self, key: usize) -> Option<&[u8]> {
         for i in 0..self.len {
             let idx = self.traverse[i];
-            if key == self.keys[idx] {
+            if key == self.entries[idx].key {
                 self.promote(i);
-                return Some(&self.values[idx]);
+                return Some(&self.entries[idx].value);
             }
         }
         None
     }
+
     // checks if key is already cached, we shouldn't allow rewrites - uid/gid are stable
     fn key_exists(&self, key: usize) -> bool {
         for i in 0..self.len {
             let idx = self.traverse[i];
-            if key == self.keys[idx] {
+            if key == self.entries[idx].key {
                 return true;
             }
         }
@@ -85,10 +98,10 @@ impl<const L: usize, const S: usize> ByteCache<L, S> {
         }
         let len = self.len();
         let idx = self.traverse[len];
-        self.keys[idx] = key;
+        self.entries[idx].key = key;
         //truncating if len is > S
         let value_len = value.len().min(S);
-        self.values[idx][..value_len].copy_from_slice(&value[..value_len]);
+        self.entries[idx].value[..value_len].copy_from_slice(&value[..value_len]);
         // last recently used, should be promoted
         self.promote(len);
         self.len += 1;
@@ -124,7 +137,7 @@ mod test {
     // scenariio to test logic
     #[test]
     fn test_insert_evict() {
-        //keys: [usize;5] values: [[u8;32];5]
+        // entries: [CacheEntry[u8;32];5] - entry has a key and value
         let mut cache: ByteCache<5, 32> = ByteCache::new();
         // test initial traverse order
         assert_eq!(cache.traverse, TRAVERSE_ORDER_INIT);
@@ -132,20 +145,20 @@ mod test {
             cache.insert(k, v).expect("insertion failed");
         }
         // test change of traverse order after insertions (each insert promotes)
-        // keys     [1,2,3,4,5]
-        // traverse [4,3,2,1,0]
-        // it means that in for ex. get(4) loop will make just 2 checks kyes[4] which is 5 => next keys[3] which is 4
+        // entries keys    [1,2,3,4,5]
+        // traverse        [4,3,2,1,0]
+        // it means that in for ex. get(4) loop will make just 2 checks entries[4] which is 5 => next entries[3] which is 4
         assert_eq!(cache.traverse, TRAVERSE_ORDER_INIT_INSERTS);
         cache.insert(6, b"six").expect("insertion failed");
-        // since cache is full, on insert it will evict key/value with last index in traverse => evicts keys[0]==1
-        // and replaces with a new value so key[0]=6 (same for values)
+        // since cache is full, on insert it will evict Entry with last index in traverse => evicts entries[0]==1
+        // and replaces with a new value so entries[0]=6
         // and since it inserts it promotes value => 0 becomes first element in traverse
-        // keys     [6,2,3,4,5]
-        // traverse [0,4,3,2,1]
+        // entries keys     [6,2,3,4,5]
+        // traverse         [0,4,3,2,1]
         assert_eq!(cache.traverse, TRAVERSE_ORDER_EVICT_ON_INSERT);
         for (i, &(k, v)) in K_V_EVICT_ON_INSERT.iter().enumerate() {
-            assert_eq!(cache.keys[i], k);
-            assert_eq!(&cache.values[i][..v.len()], v); // rn values are with trailing zeroes. 
+            assert_eq!(cache.entries[i].key, k);
+            assert_eq!(&cache.entries[i].value[..v.len()], v); // rn values are with trailing zeroes. 
         }
     }
 
