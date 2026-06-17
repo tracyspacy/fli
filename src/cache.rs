@@ -7,16 +7,12 @@ premises:
 
 */
 
-// TODO:
-//  -get() returns &[u8;l], not actual size, may have trailing zeroes
-// but it writes to stdout without 0s
-
 use crate::errors::{FliError::EntryAlreadyCachedErr, FliResult};
 
 struct CacheEntry<const S: usize> {
     key: usize,
     value: [u8; S],
-    // size: u8,
+    size: usize,
 }
 
 impl<const S: usize> Default for CacheEntry<S> {
@@ -24,7 +20,22 @@ impl<const S: usize> Default for CacheEntry<S> {
         Self {
             key: 0,
             value: [0; S],
+            size: 0,
         }
+    }
+}
+
+impl<const S: usize> CacheEntry<S> {
+    fn fill(&mut self, key: usize, value: &[u8]) {
+        self.key = key;
+        //truncating if len is > S
+        let value_len = value.len().min(S);
+        self.value[..value_len].copy_from_slice(&value[..value_len]);
+        // self.size is always <= S
+        self.size = value_len;
+    }
+    fn value_bytes(&self) -> &[u8] {
+        &self.value[..self.size]
     }
 }
 
@@ -62,8 +73,7 @@ impl<const L: usize, const S: usize> ByteCache<L, S> {
             return;
         }
         let idx = self.traverse[self.len() - 1];
-        self.entries[idx].key = 0usize;
-        self.entries[idx].value = [0u8; S];
+        self.entries[idx] = CacheEntry::default();
         self.len -= 1;
     }
     // not getting false positive on zeroed values since loop is based on len
@@ -72,7 +82,7 @@ impl<const L: usize, const S: usize> ByteCache<L, S> {
             let idx = self.traverse[i];
             if key == self.entries[idx].key {
                 self.promote(i);
-                return Some(&self.entries[idx].value);
+                return Some(self.entries[idx].value_bytes());
             }
         }
         None
@@ -98,10 +108,7 @@ impl<const L: usize, const S: usize> ByteCache<L, S> {
         }
         let len = self.len();
         let idx = self.traverse[len];
-        self.entries[idx].key = key;
-        //truncating if len is > S
-        let value_len = value.len().min(S);
-        self.entries[idx].value[..value_len].copy_from_slice(&value[..value_len]);
+        self.entries[idx].fill(key, value);
         // last recently used, should be promoted
         self.promote(len);
         self.len += 1;
@@ -158,7 +165,7 @@ mod test {
         assert_eq!(cache.traverse, TRAVERSE_ORDER_EVICT_ON_INSERT);
         for (i, &(k, v)) in K_V_EVICT_ON_INSERT.iter().enumerate() {
             assert_eq!(cache.entries[i].key, k);
-            assert_eq!(&cache.entries[i].value[..v.len()], v); // rn values are with trailing zeroes. 
+            assert_eq!(cache.entries[i].value_bytes(), v); // rn values are with trailing zeroes. 
         }
     }
 
