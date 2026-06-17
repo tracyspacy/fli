@@ -12,6 +12,7 @@ pub enum FliError {
     Getgrgid,
     MissingMetadata,
     AlignmentWidthError,
+    EntryAlreadyCachedErr,
 }
 
 impl FliError {
@@ -28,6 +29,7 @@ impl FliError {
             FliError::Getgrgid => 9,
             FliError::MissingMetadata => 10,
             FliError::AlignmentWidthError => 11,
+            FliError::EntryAlreadyCachedErr => 12,
         }
     }
 }

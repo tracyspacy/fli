@@ -1,3 +1,4 @@
+use crate::cache::ByteCache;
 use crate::dir::{DirEntry, Metadata};
 use crate::entry_table::EntryTable;
 use crate::errors::{FliError::MissingAlignments, FliResult};
@@ -6,18 +7,15 @@ use crate::utils::align_int;
 use libc::{STDOUT_FILENO, write};
 //4 kb sounds nice
 const BUFFER_SIZE: usize = 4096;
+const CACHE_SIZE: usize = 50;
+// should be enough
+// seems 30-32 is general limit
+const CACHE_VALUE_SIZE: usize = 32;
 
 // helper write
 fn write_bytes(bytes: &[u8]) {
     unsafe {
         write(STDOUT_FILENO, bytes.as_ptr() as *const _, bytes.len());
-    }
-}
-
-impl core::fmt::Write for Buffer {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        self.push_bytes(s.as_bytes());
-        Ok(())
     }
 }
 
@@ -55,6 +53,8 @@ impl Buffer {
 //probably replace aligmnets with struct {size,n_link,user,group} but for now size and n_link should be enough
 pub struct Output {
     buffer: Buffer,
+    names_cache: ByteCache<CACHE_SIZE, CACHE_VALUE_SIZE>,
+    groups_cache: ByteCache<CACHE_SIZE, CACHE_VALUE_SIZE>,
     pub alignments: Option<Alignments>,
 }
 
@@ -62,6 +62,8 @@ impl Output {
     pub fn new(alignments: Option<Alignments>) -> Self {
         Self {
             buffer: Buffer::new(),
+            names_cache: ByteCache::new(),
+            groups_cache: ByteCache::new(),
             alignments,
         }
     }
@@ -81,12 +83,27 @@ impl Output {
             self.buffer.push_bytes(aligned);
             self.buffer.push_bytes(b"  ");
 
-            let user = m.user_bytes()?;
-            self.buffer.push_bytes(user);
+            //adding cache
+            let uid = m.get_pw_uid();
+            let name_bytes = if let Some(cached_name) = self.names_cache.get(uid) {
+                cached_name
+            } else {
+                let user = m.user_bytes()?;
+                self.names_cache.insert(uid, user)?;
+                user
+            };
+            self.buffer.push_bytes(name_bytes);
             self.buffer.push_bytes(b"  ");
 
-            let group = m.group_bytes()?;
-            self.buffer.push_bytes(group);
+            let gid = m.get_gr_gid();
+            let group_bytes = if let Some(cached_group) = self.groups_cache.get(gid) {
+                cached_group
+            } else {
+                let group = m.group_bytes()?;
+                self.groups_cache.insert(gid, group)?;
+                group
+            };
+            self.buffer.push_bytes(group_bytes);
             self.buffer.push_bytes(b"  ");
 
             let mut size_buf = DEF_INT_BYTES;
