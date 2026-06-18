@@ -143,8 +143,8 @@ impl Output {
         if !entry_type.is_symlink() {
             self.output_name_and_type(entry.name().to_bytes(), f_type);
         } else {
-            let (name, path) = entry.sym_link_with_value()?;
-            self.output_name_type_and_link(name.to_bytes(), f_type, &path);
+            let (name, path, size) = entry.sym_link_with_value()?;
+            self.output_name_type_and_link(name.to_bytes(), f_type, &path[..size]);
         }
         Ok(())
     }
@@ -165,9 +165,14 @@ impl Output {
             if let Some(m) = &entry.metadata {
                 self.output_metadata_w_alignments(m)?;
             }
-            let e_type_str = entry.d_type.emoji_view();
+            let entry_type = &entry.d_type;
             let name = arena.name_by_index(arena.index[i]);
-            self.output_name_and_type(name, e_type_str.as_bytes());
+            if !entry_type.is_symlink() {
+                self.output_name_and_type(name, entry_type.emoji_view().as_bytes());
+            } else {
+                let symlink = arena.sym_link_by_index(arena.index[i]);
+                self.output_name_type_and_link(name, entry_type.emoji_view().as_bytes(), symlink);
+            }
         }
         Ok(())
     }

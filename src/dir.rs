@@ -120,8 +120,8 @@ impl DirEntry {
     }
 
     // https://www.man7.org/linux/man-pages/man2/readlink.2.html
-    //
-    pub fn sym_link_with_value(&self) -> FliResult<(&core::ffi::CStr, [u8; 255])> {
+    // returns number of bytes placed in buffer, so len
+    pub fn sym_link_with_value(&self) -> FliResult<(&core::ffi::CStr, [u8; 255], usize)> {
         if !self.entry_type().is_symlink() {
             return Err(WrongEntryType);
         }
@@ -129,7 +129,7 @@ impl DirEntry {
         // buffer size, maybe can use smaller
         let mut buffer = [0u8; 255];
         let name = self.name();
-        let read_link = unsafe {
+        let path_len = unsafe {
             libc::readlinkat(
                 self.dirfd,
                 name.as_ptr(),
@@ -137,10 +137,10 @@ impl DirEntry {
                 buffer.len(),
             )
         };
-        if read_link == -1 {
+        if path_len == -1 {
             return Err(ReadLink);
         }
-        Ok((name, buffer))
+        Ok((name, buffer, path_len as usize))
     }
 }
 
