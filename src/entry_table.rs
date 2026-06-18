@@ -8,7 +8,7 @@ use crate::utils::{digit_count, natural_cmp};
 use alloc::vec::Vec;
 ///// arean
 pub struct Entry {
-    name_offset: u32,      // 4 bytes ? maybe usize
+    name_offset: usize,
     name_len: u8,          // 1 byte - since generally [u8;255]
     pub d_type: EntryType, // 1 byte
     pub metadata: Option<Metadata>,
@@ -40,7 +40,7 @@ impl EntryTable {
         self.arena.extend_from_slice(name);
         let idx = self.entries.len();
         self.entries.push(Entry {
-            name_offset: offset as u32,
+            name_offset: offset,
             name_len: name_len as u8,
             d_type: entry.entry_type(),
             metadata: None,
@@ -60,7 +60,7 @@ impl EntryTable {
         // make it better, need error if none
         let metadata = Metadata::new(&entry)?;
         self.entries.push(Entry {
-            name_offset: offset as u32,
+            name_offset: offset,
             name_len: name_len as u8,
             d_type: entry.entry_type(),
             metadata: Some(metadata),
@@ -71,7 +71,7 @@ impl EntryTable {
 
     pub fn name_by_index(&self, index: usize) -> &[u8] {
         let entry = &self.entries[index];
-        let name_offset = entry.name_offset as usize;
+        let name_offset = entry.name_offset;
         let name_len = entry.name_len;
         &self.arena[name_offset..name_offset + name_len as usize]
     }
@@ -99,10 +99,8 @@ impl EntryTable {
         self.index.sort_unstable_by(|&a, &b| {
             let ea = &entries[a];
             let eb = &entries[b];
-            let na =
-                &arena[ea.name_offset as usize..ea.name_offset as usize + ea.name_len as usize];
-            let nb =
-                &arena[eb.name_offset as usize..eb.name_offset as usize + eb.name_len as usize];
+            let na = &arena[ea.name_offset..ea.name_offset + ea.name_len as usize];
+            let nb = &arena[eb.name_offset..eb.name_offset + eb.name_len as usize];
             natural_cmp(na, nb)
         });
     }
