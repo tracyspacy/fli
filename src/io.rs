@@ -73,6 +73,15 @@ impl Output {
         self.buffer.push_bytes(name);
         self.buffer.push_bytes(b"\n");
     }
+
+    fn output_name_type_and_link(&mut self, name: &[u8], f_type: &[u8], link: &[u8]) {
+        self.buffer.push_bytes(f_type);
+        self.buffer.push_bytes(name);
+        self.buffer.push_bytes(b" -> ");
+        self.buffer.push_bytes(link);
+        self.buffer.push_bytes(b"\n");
+    }
+
     //alignments could be none! need to handle
     fn output_metadata_w_alignments(&mut self, m: &Metadata) -> FliResult<()> {
         if let Some(aligments) = &self.alignments {
@@ -129,7 +138,14 @@ impl Output {
     pub fn stream_long(&mut self, entry: DirEntry) -> FliResult<()> {
         let metadata = Metadata::new(&entry)?;
         self.output_metadata_w_alignments(&metadata)?;
-        self.stream_short(entry);
+        let entry_type = entry.entry_type();
+        let f_type = entry_type.emoji_view().as_bytes();
+        if !entry_type.is_symlink() {
+            self.output_name_and_type(entry.name().to_bytes(), f_type);
+        } else {
+            let (name, path) = entry.sym_link_with_value()?;
+            self.output_name_type_and_link(name.to_bytes(), f_type, &path);
+        }
         Ok(())
     }
 

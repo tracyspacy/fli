@@ -94,7 +94,7 @@ impl EntryType {
             EntryType::Other => " ",
         }
     }
-    fn is_symlink(&self) -> bool {
+    pub fn is_symlink(&self) -> bool {
         matches!(self, EntryType::SymLink)
     }
 }
