@@ -1,5 +1,8 @@
 use crate::errors::{
-    FliError::{DirFd, FStatAt, Getgrgid, Getpwuid, LocalTime, OpenDirError, StrFTime},
+    FliError::{
+        DirFd, FStatAt, Getgrgid, Getpwuid, LocalTime, OpenDirError, ReadLink, StrFTime,
+        WrongEntryType,
+    },
     FliResult,
 };
 use core::ffi::c_char;
@@ -91,6 +94,9 @@ impl EntryType {
             EntryType::Other => " ",
         }
     }
+    fn is_symlink(&self) -> bool {
+        matches!(self, EntryType::SymLink)
+    }
 }
 
 impl From<u8> for EntryType {
@@ -111,6 +117,30 @@ impl DirEntry {
     }
     pub fn entry_type(&self) -> EntryType {
         EntryType::from(unsafe { (*self.dirent).d_type })
+    }
+
+    // https://www.man7.org/linux/man-pages/man2/readlink.2.html
+    //
+    pub fn sym_link_with_value(&self) -> FliResult<(&core::ffi::CStr, [u8; 255])> {
+        if !self.entry_type().is_symlink() {
+            return Err(WrongEntryType);
+        }
+        //If the returned value equals bufsiz, then truncation may have occurred.
+        // buffer size, maybe can use smaller
+        let mut buffer = [0u8; 255];
+        let name = self.name();
+        let read_link = unsafe {
+            libc::readlinkat(
+                self.dirfd,
+                name.as_ptr(),
+                buffer.as_mut_ptr() as *mut libc::c_char,
+                buffer.len(),
+            )
+        };
+        if read_link == -1 {
+            return Err(ReadLink);
+        }
+        Ok((name, buffer))
     }
 }
 
@@ -174,6 +204,7 @@ impl Metadata {
     pub fn n_link(&self) -> usize {
         self.0.st_nlink as usize
     }
+
     // need to format properly, not as timestamp
     // clippy!! where are you my Lord and Savior?!
     pub fn last_modified_fmt(&self) -> FliResult<[u8; 15]> {
