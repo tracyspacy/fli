@@ -54,28 +54,23 @@ impl EntryTable {
 
     pub fn push_long(&mut self, entry: DirEntry) -> FliResult<()> {
         let entry_type = entry.entry_type();
-        let (name_offset, name_len, sl_path_offset, sl_path_len) = if !entry_type.is_symlink() {
-            let name = entry.name().to_bytes();
-            let name_len = name.len();
-            if name_len > 255 {
-                return Err(NameLen);
-            }
-            let name_offset = self.arena.len();
-            self.arena.extend_from_slice(name);
 
-            (name_offset, name_len, 0, 0)
+        let name = entry.name();
+        let name_bytes = name.to_bytes();
+        let name_len = name_bytes.len();
+        if name_len > 255 {
+            return Err(NameLen);
+        }
+        let name_offset = self.arena.len();
+        self.arena.extend_from_slice(name_bytes);
+
+        let (sl_path_offset, sl_path_len) = if !entry_type.is_symlink() {
+            (0, 0)
         } else {
-            let (name, sl_path, sl_path_len) = entry.sym_link_with_value()?;
-            let name_bytes = name.to_bytes();
-            let name_len = name_bytes.len();
-            if name_len > 255 {
-                return Err(NameLen);
-            }
-            let name_offset = self.arena.len();
-            self.arena.extend_from_slice(name_bytes);
+            let (sl_path, sl_path_len) = entry.sym_link_with_value(name)?;
             let sl_path_offset = self.arena.len();
             self.arena.extend_from_slice(&sl_path[..sl_path_len]);
-            (name_offset, name_len, sl_path_offset, sl_path_len)
+            (sl_path_offset, sl_path_len)
         };
 
         let idx = self.entries.len();

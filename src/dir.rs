@@ -121,14 +121,13 @@ impl DirEntry {
 
     // https://www.man7.org/linux/man-pages/man2/readlink.2.html
     // returns number of bytes placed in buffer, so len
-    pub fn sym_link_with_value(&self) -> FliResult<(&core::ffi::CStr, [u8; 255], usize)> {
+    pub fn sym_link_with_value(&self, name: &core::ffi::CStr) -> FliResult<([u8; 255], usize)> {
         if !self.entry_type().is_symlink() {
             return Err(WrongEntryType);
         }
         //If the returned value equals bufsiz, then truncation may have occurred.
         // buffer size, maybe can use smaller
         let mut buffer = [0u8; 255];
-        let name = self.name();
         let path_len = unsafe {
             libc::readlinkat(
                 self.dirfd,
@@ -140,7 +139,7 @@ impl DirEntry {
         if path_len == -1 {
             return Err(ReadLink);
         }
-        Ok((name, buffer, path_len as usize))
+        Ok((buffer, path_len as usize))
     }
 }
 

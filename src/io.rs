@@ -140,11 +140,12 @@ impl Output {
         self.output_metadata_w_alignments(&metadata)?;
         let entry_type = entry.entry_type();
         let f_type = entry_type.emoji_view().as_bytes();
+        let name = entry.name();
         if !entry_type.is_symlink() {
-            self.output_name_and_type(entry.name().to_bytes(), f_type);
+            self.output_name_and_type(name.to_bytes(), f_type);
         } else {
-            let (name, path, size) = entry.sym_link_with_value()?;
-            self.output_name_type_and_link(name.to_bytes(), f_type, &path[..size]);
+            let (path, path_len) = entry.sym_link_with_value(name)?;
+            self.output_name_type_and_link(name.to_bytes(), f_type, &path[..path_len]);
         }
         Ok(())
     }
