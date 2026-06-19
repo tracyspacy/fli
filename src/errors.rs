@@ -13,6 +13,8 @@ pub enum FliError {
     MissingMetadata,
     AlignmentWidthError,
     EntryAlreadyCachedErr,
+    ReadLink,
+    WrongEntryType,
 }
 
 impl FliError {
@@ -30,6 +32,8 @@ impl FliError {
             FliError::MissingMetadata => 10,
             FliError::AlignmentWidthError => 11,
             FliError::EntryAlreadyCachedErr => 12,
+            FliError::ReadLink => 13,
+            FliError::WrongEntryType => 14,
         }
     }
 }

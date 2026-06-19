@@ -73,6 +73,15 @@ impl Output {
         self.buffer.push_bytes(name);
         self.buffer.push_bytes(b"\n");
     }
+
+    fn output_name_type_and_link(&mut self, name: &[u8], f_type: &[u8], link: &[u8]) {
+        self.buffer.push_bytes(f_type);
+        self.buffer.push_bytes(name);
+        self.buffer.push_bytes(b" -> ");
+        self.buffer.push_bytes(link);
+        self.buffer.push_bytes(b"\n");
+    }
+
     //alignments could be none! need to handle
     fn output_metadata_w_alignments(&mut self, m: &Metadata) -> FliResult<()> {
         if let Some(aligments) = &self.alignments {
@@ -129,7 +138,15 @@ impl Output {
     pub fn stream_long(&mut self, entry: DirEntry) -> FliResult<()> {
         let metadata = Metadata::new(&entry)?;
         self.output_metadata_w_alignments(&metadata)?;
-        self.stream_short(entry);
+        let entry_type = entry.entry_type();
+        let f_type = entry_type.emoji_view().as_bytes();
+        let name = entry.name();
+        if !entry_type.is_symlink() {
+            self.output_name_and_type(name.to_bytes(), f_type);
+        } else {
+            let (path, path_len) = entry.sym_link_with_value(name)?;
+            self.output_name_type_and_link(name.to_bytes(), f_type, &path[..path_len]);
+        }
         Ok(())
     }
 
@@ -149,9 +166,14 @@ impl Output {
             if let Some(m) = &entry.metadata {
                 self.output_metadata_w_alignments(m)?;
             }
-            let e_type_str = entry.d_type.emoji_view();
+            let entry_type = &entry.d_type;
             let name = arena.name_by_index(arena.index[i]);
-            self.output_name_and_type(name, e_type_str.as_bytes());
+            if !entry_type.is_symlink() {
+                self.output_name_and_type(name, entry_type.emoji_view().as_bytes());
+            } else {
+                let symlink = arena.sym_link_by_index(arena.index[i]);
+                self.output_name_type_and_link(name, entry_type.emoji_view().as_bytes(), symlink);
+            }
         }
         Ok(())
     }
