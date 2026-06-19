@@ -98,6 +98,13 @@ pub fn natural_cmp(left: &[u8], right: &[u8]) -> core::cmp::Ordering {
     left.len().cmp(&right.len())
 }
 
+// helper to reuse sort_unstable_by() with own cmp fn
+// &dyn allows to optimize bin size for arm-unknown-linux-gnueabihf
+// so it not duplicating std core::slice::sort::unstable::quicksort::quicksort
+pub fn sort_index_by(index_vec: &mut [usize], cmp: &dyn Fn(usize, usize) -> core::cmp::Ordering) {
+    index_vec.sort_unstable_by(|&a, &b| cmp(a, b))
+}
+
 #[cfg(test)]
 mod test {
     use crate::output_config::DEF_INT_BYTES;

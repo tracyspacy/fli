@@ -86,7 +86,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             }
             match sort {
                 Sort::Name => arena.sort_by_name(),
-                Sort::Size => (),
+                Sort::Size => arena.sort_by_size(),
             }
             let alignments = arena.get_alignments()?;
             output.alignments = Some(alignments);

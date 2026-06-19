@@ -4,7 +4,7 @@ use crate::errors::{
     FliResult,
 };
 use crate::output_config::{Alignments, Width};
-use crate::utils::{digit_count, natural_cmp};
+use crate::utils::{digit_count, natural_cmp, sort_index_by};
 use alloc::vec::Vec;
 ///// arean
 pub struct Entry {
@@ -121,12 +121,24 @@ impl EntryTable {
     pub fn sort_by_name(&mut self) {
         let arena = &self.arena;
         let entries = &self.entries;
-        self.index.sort_unstable_by(|&a, &b| {
-            let ea = &entries[a];
-            let eb = &entries[b];
+        sort_index_by(&mut self.index, &|a, b| {
+            let ea: &Entry = &entries[a];
+            let eb: &Entry = &entries[b];
             let na = &arena[ea.name_offset..ea.name_offset + ea.name_len as usize];
             let nb = &arena[eb.name_offset..eb.name_offset + eb.name_len as usize];
             natural_cmp(na, nb)
+        });
+    }
+
+    pub fn sort_by_size(&mut self) {
+        let entries = &self.entries;
+        sort_index_by(&mut self.index, &|a: usize, b: usize| match (
+            &entries[a].metadata,
+            &entries[b].metadata,
+        ) {
+            (Some(a_m), Some(b_m)) => a_m.size().cmp(&b_m.size()),
+            // we should't have None at this point!
+            _ => core::cmp::Ordering::Equal,
         });
     }
 }
