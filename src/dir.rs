@@ -203,6 +203,9 @@ impl Metadata {
     pub fn n_link(&self) -> usize {
         self.0.st_nlink as usize
     }
+    pub fn st_mtime(&self) -> usize {
+        self.0.st_mtime as usize
+    }
     // need to format properly, not as timestamp
     // clippy!! where are you my Lord and Savior?!
     pub fn last_modified_fmt(&self) -> FliResult<[u8; 17]> {

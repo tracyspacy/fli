@@ -141,4 +141,15 @@ impl EntryTable {
             _ => core::cmp::Ordering::Equal,
         });
     }
+    pub fn sort_by_time(&mut self) {
+        let entries = &self.entries;
+        sort_index_by(&mut self.index, &|a: usize, b: usize| match (
+            &entries[a].metadata,
+            &entries[b].metadata,
+        ) {
+            (Some(a_m), Some(b_m)) => a_m.st_mtime().cmp(&b_m.st_mtime()),
+            // we should't have None at this point!
+            _ => core::cmp::Ordering::Equal,
+        });
+    }
 }
