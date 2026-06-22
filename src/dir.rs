@@ -203,13 +203,12 @@ impl Metadata {
     pub fn n_link(&self) -> usize {
         self.0.st_nlink as usize
     }
-
     // need to format properly, not as timestamp
     // clippy!! where are you my Lord and Savior?!
-    pub fn last_modified_fmt(&self) -> FliResult<[u8; 15]> {
-        //example output 06/06/26 16:11 ie 14 bytes + null byte
+    pub fn last_modified_fmt(&self) -> FliResult<[u8; 17]> {
+        //example output 2026-06-06 16:11 ie 16 bytes + null byte
         // need to consider this then pushing to buffer
-        let mut char_buf: [u8; 15] = [0u8; 15];
+        let mut char_buf: [u8; 17] = [0u8; 17];
         let mut tm = core::mem::MaybeUninit::<libc::tm>::zeroed();
         unsafe {
             let mtime = &self.0.st_mtime as *const libc::time_t;
@@ -221,8 +220,8 @@ impl Metadata {
             }
             let tm_ref = tm.assume_init_ref();
             //https://www.man7.org/linux/man-pages/man3/strftime.3.html
-            // format
-            let fmt = b"%d/%m/%y %H:%M\0";
+            // ISO8601 format YYYY-MM-DD
+            let fmt = b"%Y-%m-%d %H:%M\0";
             let writer = libc::strftime(
                 char_buf.as_mut_ptr() as *mut libc::c_char,
                 char_buf.len(),
