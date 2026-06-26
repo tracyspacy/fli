@@ -28,13 +28,14 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
     let mut sort: Option<Sort> = None;
 
     loop {
-        let opt = unsafe { libc::getopt(argc, argv, c"slS".as_ptr()) };
+        let opt = unsafe { libc::getopt(argc, argv, c"slSt".as_ptr()) };
         if opt == -1 {
             break;
         }
         match opt as u8 {
             b's' => sort = Some(Sort::Name),
             b'S' => sort = Some(Sort::Size),
+            b't' => sort = Some(Sort::Time),
             b'l' => config.display = Display::Long,
             _ => {}
         }
@@ -75,6 +76,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             match sort {
                 Sort::Name => arena.sort_by_name(),
                 Sort::Size => (),
+                Sort::Time => (),
             }
             output.push_arena_short(arena);
         }
@@ -87,6 +89,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             match sort {
                 Sort::Name => arena.sort_by_name(),
                 Sort::Size => arena.sort_by_size(),
+                Sort::Time => arena.sort_by_time(),
             }
             let alignments = arena.get_alignments()?;
             output.alignments = Some(alignments);

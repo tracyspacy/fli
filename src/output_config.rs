@@ -7,6 +7,7 @@ pub const DEF_INT_BYTES: IntBytes = [b' '; MAX_INT_LEN];
 pub enum Sort {
     Name,
     Size,
+    Time,
 }
 
 pub enum Display {
