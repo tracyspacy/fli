@@ -29,7 +29,7 @@ pub struct ReturnConfig {
 impl Default for ReturnConfig {
     fn default() -> Self {
         Self {
-            mode: Mode::Stream,
+            mode: Mode::Alloc(Sort::Name),
             display: Display::Short,
             path: c".".as_ptr(),
         }

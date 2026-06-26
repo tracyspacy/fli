@@ -14,7 +14,7 @@ mod io;
 use io::Output;
 use output_config::{Alignments, Display, MAX_INT_LEN, Mode, ReturnConfig, Sort, Width};
 
-use crate::errors::FliResult;
+use crate::{errors::FliResult, output_config::Mode::Stream};
 extern crate alloc;
 
 #[cfg(not(test))]
@@ -24,26 +24,28 @@ fn panic(_: &core::panic::PanicInfo) -> ! {
 }
 
 fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
+    // default is short and sorted by name output , ie Alloc(Sort::Name)
     let mut config = ReturnConfig::default();
-    let mut sort: Option<Sort> = None;
-
     loop {
-        let opt = unsafe { libc::getopt(argc, argv, c"slSt".as_ptr()) };
+        let opt = unsafe { libc::getopt(argc, argv, c"lStU".as_ptr()) };
         if opt == -1 {
             break;
         }
+        // simple ls like logic - last flag wins:
+        // ls -l -U -t == long and sort by time
+        // ls -l -t -U == long and unsrted
         match opt as u8 {
-            b's' => sort = Some(Sort::Name),
-            b'S' => sort = Some(Sort::Size),
-            b't' => sort = Some(Sort::Time),
-            b'l' => config.display = Display::Long,
+            b'S' => config.mode = Mode::Alloc(Sort::Size),
+            b't' => config.mode = Mode::Alloc(Sort::Time),
+            b'l' => {
+                config.mode = Mode::Alloc(Sort::Name);
+                config.display = Display::Long;
+            }
+            b'U' => config.mode = Stream,
             _ => {}
         }
     }
 
-    if let Some(s) = sort {
-        config.mode = Mode::Alloc(s)
-    }
     let mut output = Output::new(None);
 
     match (config.mode, config.display) {
