@@ -26,6 +26,7 @@ While working on fli, another aspect of my interest and motivation is to check i
 - `fli -l` : long (name, type, metadata ) not sorted output and fixed-sized alignment (20 chars for size and n_link) - direct stream, no heap allocation
 - `fli -l -s`: long (name, type, metadata ) sorted by **name** output and dynamic alignment - uses heap allocation.
 - `fli -l -S`: long (name, type, metadata ) sorted by **size** output and dynamic alignment - uses heap allocation.
+- `fli -l -t`: long (name, type, metadata ) sorted by **time** output and dynamic alignment - uses heap allocation.
 
 New display options may be added soon.
 
