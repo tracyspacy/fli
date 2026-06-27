@@ -1,6 +1,6 @@
 use crate::cache::ByteCache;
 use crate::dir::{DirEntry, Metadata};
-use crate::entry_table::EntryTable;
+use crate::entry_table::{LongTable, ShortTable};
 use crate::errors::{FliError::MissingAlignments, FliResult};
 use crate::output_config::{Alignments, DEF_INT_BYTES};
 use crate::utils::align_int;
@@ -150,28 +150,24 @@ impl Output {
         Ok(())
     }
 
-    pub fn push_arena_short(&mut self, arena: EntryTable) {
-        for i in 0..arena.index.len() {
-            let entry = &arena.entries[arena.index[i]];
-            let e_type_str = entry.d_type.emoji_view();
-            let name = arena.name_by_index(arena.index[i]);
+    pub fn push_arena_short(&mut self, arena: ShortTable) {
+        arena.indexes().for_each(|idx| {
+            let e_type_str = arena.entry_type_by_index(idx).emoji_view();
+            let name = arena.name_by_index(idx);
             self.output_name_and_type(name, e_type_str.as_bytes());
-        }
+        });
     }
 
-    //prints short if none, need to decided if return as it is or handle error?
-    pub fn push_arena_long(&mut self, arena: EntryTable) -> FliResult<()> {
-        for i in 0..arena.index.len() {
-            let entry = &arena.entries[arena.index[i]];
-            if let Some(m) = &entry.metadata {
-                self.output_metadata_w_alignments(m)?;
-            }
-            let entry_type = &entry.d_type;
-            let name = arena.name_by_index(arena.index[i]);
+    pub fn push_arena_long(&mut self, arena: LongTable) -> FliResult<()> {
+        for idx in arena.indexes() {
+            let m = arena.metadata_by_index(idx);
+            self.output_metadata_w_alignments(m)?;
+            let entry_type = arena.entry_type_by_index(idx);
+            let name = arena.name_by_index(idx);
             if !entry_type.is_symlink() {
                 self.output_name_and_type(name, entry_type.emoji_view().as_bytes());
             } else {
-                let symlink = arena.sym_link_by_index(arena.index[i]);
+                let symlink = arena.sym_link_by_index(idx);
                 self.output_name_type_and_link(name, entry_type.emoji_view().as_bytes(), symlink);
             }
         }

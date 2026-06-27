@@ -8,13 +8,16 @@ mod global_alloc;
 mod output_config;
 mod utils;
 use dir::OpenDir;
-use entry_table::EntryTable;
 mod errors;
 mod io;
 use io::Output;
 use output_config::{Alignments, Display, MAX_INT_LEN, Mode, ReturnConfig, Sort, Width};
 
-use crate::{errors::FliResult, output_config::Mode::Stream};
+use crate::{
+    entry_table::{LongTable, ShortTable},
+    errors::FliResult,
+    output_config::Mode::Stream,
+};
 extern crate alloc;
 
 #[cfg(not(test))]
@@ -69,30 +72,16 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
                 output.stream_long(entry)?;
             }
         }
-        (Mode::Alloc(sort), Display::Short) => {
-            let mut arena = EntryTable::new();
-            let dir = OpenDir::new(config.path)?;
-            for entry in dir {
-                arena.push_short(entry);
-            }
-            match sort {
-                Sort::Name => arena.sort_by_name(),
-                Sort::Size => (),
-                Sort::Time => (),
-            }
+        (Mode::Alloc(_), Display::Short) => {
+            let mut arena = ShortTable::new();
+            OpenDir::new(config.path)?.for_each(|e| arena.push(e));
+            arena.sort_by();
             output.push_arena_short(arena);
         }
         (Mode::Alloc(sort), Display::Long) => {
-            let mut arena = EntryTable::new();
-            let dir = OpenDir::new(config.path)?;
-            for entry in dir {
-                arena.push_long(entry)?;
-            }
-            match sort {
-                Sort::Name => arena.sort_by_name(),
-                Sort::Size => arena.sort_by_size(),
-                Sort::Time => arena.sort_by_time(),
-            }
+            let mut arena = LongTable::new();
+            OpenDir::new(config.path)?.try_for_each(|e| arena.push(e))?;
+            arena.sort_by(sort);
             let alignments = arena.get_alignments()?;
             output.alignments = Some(alignments);
             output.push_arena_long(arena)?;

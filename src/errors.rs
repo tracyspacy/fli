@@ -10,7 +10,6 @@ pub enum FliError {
     MissingAlignments,
     Getpwuid,
     Getgrgid,
-    MissingMetadata,
     AlignmentWidthError,
     EntryAlreadyCachedErr,
     ReadLink,
@@ -29,11 +28,10 @@ impl FliError {
             FliError::MissingAlignments => 7,
             FliError::Getpwuid => 8,
             FliError::Getgrgid => 9,
-            FliError::MissingMetadata => 10,
-            FliError::AlignmentWidthError => 11,
-            FliError::EntryAlreadyCachedErr => 12,
-            FliError::ReadLink => 13,
-            FliError::WrongEntryType => 14,
+            FliError::AlignmentWidthError => 10,
+            FliError::EntryAlreadyCachedErr => 11,
+            FliError::ReadLink => 12,
+            FliError::WrongEntryType => 13,
         }
     }
 }

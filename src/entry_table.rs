@@ -1,37 +1,29 @@
 use crate::dir::{DirEntry, EntryType, Metadata};
-use crate::errors::{
-    FliError::{MissingMetadata, NameLen},
-    FliResult,
-};
-use crate::output_config::{Alignments, Width};
+use crate::errors::{FliError::NameLen, FliResult};
+use crate::output_config::{Alignments, Sort, Width};
 use crate::utils::{digit_count, natural_cmp, sort_index_by};
 use alloc::vec::Vec;
 ///// arean
-pub struct Entry {
+pub struct Entry<M> {
     name_offset: usize,
     name_len: u8, // 1 byte - since generally [u8;255]
     sl_path_offset: usize,
-    sl_path_len: u8,       // 1 byte - since generally [u8;255]
-    pub d_type: EntryType, // 1 byte
-    pub metadata: Option<Metadata>,
+    sl_path_len: u8,   // 1 byte - since generally [u8;255]
+    d_type: EntryType, // 1 byte
+    metadata: M,
 }
 
-pub struct EntryTable {
+pub struct EntryTable<M> {
     arena: Vec<u8>,
-    pub entries: Vec<Entry>,
-    pub index: Vec<usize>,
+    entries: Vec<Entry<M>>,
+    index: Vec<usize>,
 }
 
-impl EntryTable {
-    pub fn new() -> Self {
-        Self {
-            arena: Vec::new(),
-            entries: Vec::new(),
-            index: Vec::new(),
-        }
-    }
+pub type ShortTable = EntryTable<()>;
+pub type LongTable = EntryTable<Metadata>;
 
-    pub fn push_short(&mut self, entry: DirEntry) {
+impl EntryTable<()> {
+    pub fn push(&mut self, entry: DirEntry) {
         let name = entry.name().to_bytes();
         let name_len = name.len();
         if name_len > 255 {
@@ -47,12 +39,17 @@ impl EntryTable {
             sl_path_offset: 0, // not included
             sl_path_len: 0,    // not included
             d_type: entry.entry_type(),
-            metadata: None,
+            metadata: (),
         });
         self.index.push(idx);
     }
+    pub fn sort_by(&mut self) {
+        self.sort_by_name();
+    }
+}
 
-    pub fn push_long(&mut self, entry: DirEntry) -> FliResult<()> {
+impl EntryTable<Metadata> {
+    pub fn push(&mut self, entry: DirEntry) -> FliResult<()> {
         let entry_type = entry.entry_type();
 
         let name = entry.name();
@@ -82,10 +79,76 @@ impl EntryTable {
             sl_path_offset,
             sl_path_len: sl_path_len as u8,
             d_type: entry.entry_type(),
-            metadata: Some(metadata),
+            metadata,
         });
         self.index.push(idx);
         Ok(())
+    }
+
+    pub fn metadata_by_index(&self, index: usize) -> &Metadata {
+        let entry = self.entry_by_index(index);
+        &entry.metadata
+    }
+
+    pub fn get_alignments(&self) -> FliResult<Alignments> {
+        let mut max_n_link = 0;
+        let mut max_size = 0;
+        for i in 0..self.index.len() {
+            let m = &self.entries[i].metadata;
+            max_n_link = max_n_link.max(digit_count(m.n_link()));
+            max_size = max_size.max(digit_count(m.size()))
+        }
+        Ok(Alignments {
+            n_link_width: Width::new(max_n_link)?,
+            size_width: Width::new(max_size)?,
+        })
+    }
+    fn sort_by_size(&mut self) {
+        let entries = &self.entries;
+        sort_index_by(&mut self.index, &|a: usize, b: usize| {
+            let a_m = &entries[a].metadata;
+            let b_m = &entries[b].metadata;
+            a_m.size().cmp(&b_m.size())
+        });
+    }
+    fn sort_by_time(&mut self) {
+        let entries = &self.entries;
+        sort_index_by(&mut self.index, &|a: usize, b: usize| {
+            let a_m = &entries[a].metadata;
+            let b_m = &entries[b].metadata;
+            a_m.st_mtime().cmp(&b_m.st_mtime())
+        });
+    }
+
+    pub fn sort_by(&mut self, sort_type: Sort) {
+        match sort_type {
+            Sort::Name => self.sort_by_name(),
+            Sort::Size => self.sort_by_size(),
+            Sort::Time => self.sort_by_time(),
+        }
+    }
+}
+
+impl<M> EntryTable<M> {
+    pub fn new() -> Self {
+        Self {
+            arena: Vec::new(),
+            entries: Vec::new(),
+            index: Vec::new(),
+        }
+    }
+
+    pub fn indexes(&self) -> impl Iterator<Item = usize> {
+        self.index.iter().copied()
+    }
+
+    pub fn entry_by_index(&self, index: usize) -> &Entry<M> {
+        &self.entries[index]
+    }
+
+    pub fn entry_type_by_index(&self, index: usize) -> &EntryType {
+        let entry = self.entry_by_index(index);
+        &entry.d_type
     }
 
     pub fn name_by_index(&self, index: usize) -> &[u8] {
@@ -100,56 +163,15 @@ impl EntryTable {
         let symlink_len = entry.sl_path_len as usize;
         &self.arena[symlink_offset..symlink_offset + symlink_len]
     }
-
-    pub fn get_alignments(&self) -> FliResult<Alignments> {
-        let mut max_n_link = 0;
-        let mut max_size = 0;
-        for i in 0..self.index.len() {
-            if let Some(m) = &self.entries[i].metadata {
-                max_n_link = max_n_link.max(digit_count(m.n_link()));
-                max_size = max_size.max(digit_count(m.size()))
-            } else {
-                return Err(MissingMetadata);
-            }
-        }
-        Ok(Alignments {
-            n_link_width: Width::new(max_n_link)?,
-            size_width: Width::new(max_size)?,
-        })
-    }
-
-    pub fn sort_by_name(&mut self) {
+    fn sort_by_name(&mut self) {
         let arena = &self.arena;
         let entries = &self.entries;
         sort_index_by(&mut self.index, &|a, b| {
-            let ea: &Entry = &entries[a];
-            let eb: &Entry = &entries[b];
+            let ea: &Entry<M> = &entries[a];
+            let eb: &Entry<M> = &entries[b];
             let na = &arena[ea.name_offset..ea.name_offset + ea.name_len as usize];
             let nb = &arena[eb.name_offset..eb.name_offset + eb.name_len as usize];
             natural_cmp(na, nb)
-        });
-    }
-
-    pub fn sort_by_size(&mut self) {
-        let entries = &self.entries;
-        sort_index_by(&mut self.index, &|a: usize, b: usize| match (
-            &entries[a].metadata,
-            &entries[b].metadata,
-        ) {
-            (Some(a_m), Some(b_m)) => a_m.size().cmp(&b_m.size()),
-            // we should't have None at this point!
-            _ => core::cmp::Ordering::Equal,
-        });
-    }
-    pub fn sort_by_time(&mut self) {
-        let entries = &self.entries;
-        sort_index_by(&mut self.index, &|a: usize, b: usize| match (
-            &entries[a].metadata,
-            &entries[b].metadata,
-        ) {
-            (Some(a_m), Some(b_m)) => a_m.st_mtime().cmp(&b_m.st_mtime()),
-            // we should't have None at this point!
-            _ => core::cmp::Ordering::Equal,
         });
     }
 }
