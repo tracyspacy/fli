@@ -11,6 +11,9 @@ const CACHE_SIZE: usize = 50;
 // should be enough
 // seems 30-32 is general limit
 const CACHE_VALUE_SIZE: usize = 32;
+const DELIMITER: &[u8] = b"  ";
+const NEW_LINE: &[u8] = b"\n";
+const ARROW: &[u8] = b" -> ";
 
 // helper write
 fn write_bytes(bytes: &[u8]) {
@@ -75,7 +78,7 @@ impl OutputShort {
     fn output_name_and_type(&mut self, name: &[u8], f_type: &[u8]) {
         self.buffer.push_bytes(f_type);
         self.buffer.push_bytes(name);
-        self.buffer.push_bytes(b"\n");
+        self.buffer.push_bytes(NEW_LINE);
     }
     pub fn stream_short(&mut self, entry: DirEntry) {
         self.output_name_and_type(
@@ -97,7 +100,7 @@ pub struct OutputLong {
     buffer: Buffer,
     names_cache: ByteCache<CACHE_SIZE, CACHE_VALUE_SIZE>,
     groups_cache: ByteCache<CACHE_SIZE, CACHE_VALUE_SIZE>,
-    pub alignments: Alignments,
+    alignments: Alignments,
 }
 
 impl OutputLong {
@@ -113,26 +116,26 @@ impl OutputLong {
     fn output_name_and_type(&mut self, name: &[u8], f_type: &[u8]) {
         self.buffer.push_bytes(f_type);
         self.buffer.push_bytes(name);
-        self.buffer.push_bytes(b"\n");
+        self.buffer.push_bytes(NEW_LINE);
     }
 
     fn output_name_type_and_link(&mut self, name: &[u8], f_type: &[u8], link: &[u8]) {
         self.buffer.push_bytes(f_type);
         self.buffer.push_bytes(name);
-        self.buffer.push_bytes(b" -> ");
+        self.buffer.push_bytes(ARROW);
         self.buffer.push_bytes(link);
-        self.buffer.push_bytes(b"\n");
+        self.buffer.push_bytes(NEW_LINE);
     }
 
     //alignments could be none! need to handle
     fn output_metadata_w_alignments(&mut self, m: &Metadata) -> FliResult<()> {
         let alignments = &self.alignments;
         self.buffer.push_bytes(&m.mode_bytes());
-        self.buffer.push_bytes(b"  ");
+        self.buffer.push_bytes(DELIMITER);
         let mut nlink_buf = DEF_INT_BYTES;
         let aligned = align_int(&mut nlink_buf, m.n_link(), &alignments.n_link_width);
         self.buffer.push_bytes(aligned);
-        self.buffer.push_bytes(b"  ");
+        self.buffer.push_bytes(DELIMITER);
 
         //adding cache
         let uid = m.get_pw_uid();
@@ -144,7 +147,7 @@ impl OutputLong {
             user
         };
         self.buffer.push_bytes(name_bytes);
-        self.buffer.push_bytes(b"  ");
+        self.buffer.push_bytes(DELIMITER);
 
         let gid = m.get_gr_gid();
         let group_bytes = if let Some(cached_group) = self.groups_cache.get(gid) {
@@ -155,15 +158,15 @@ impl OutputLong {
             group
         };
         self.buffer.push_bytes(group_bytes);
-        self.buffer.push_bytes(b"  ");
+        self.buffer.push_bytes(DELIMITER);
 
         let mut size_buf = DEF_INT_BYTES;
         let aligned = align_int(&mut size_buf, m.size(), &alignments.size_width);
         self.buffer.push_bytes(aligned);
-        self.buffer.push_bytes(b"  ");
+        self.buffer.push_bytes(DELIMITER);
         let lm_time = m.last_modified_fmt()?;
         self.buffer.push_bytes(&lm_time);
-        self.buffer.push_bytes(b"  ");
+        self.buffer.push_bytes(DELIMITER);
 
         Ok(())
     }
