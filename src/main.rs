@@ -74,7 +74,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
         }
         (Mode::Alloc(_), Display::Short) => {
             let mut arena = ShortTable::new();
-            OpenDir::new(config.path)?.for_each(|e| arena.push(e));
+            OpenDir::new(config.path)?.try_for_each(|e| arena.push(e))?;
             arena.sort_by();
             output.push_arena_short(arena);
         }

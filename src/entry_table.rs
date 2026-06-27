@@ -23,11 +23,11 @@ pub type ShortTable = EntryTable<()>;
 pub type LongTable = EntryTable<Metadata>;
 
 impl EntryTable<()> {
-    pub fn push(&mut self, entry: DirEntry) {
+    pub fn push(&mut self, entry: DirEntry) -> FliResult<()> {
         let name = entry.name().to_bytes();
         let name_len = name.len();
         if name_len > 255 {
-            return; // maybe truncate?
+            return Err(NameLen);
         }
 
         let offset = self.arena.len();
@@ -42,6 +42,7 @@ impl EntryTable<()> {
             metadata: (),
         });
         self.index.push(idx);
+        Ok(())
     }
     pub fn sort_by(&mut self) {
         self.sort_by_name();
