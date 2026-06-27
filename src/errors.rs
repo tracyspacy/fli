@@ -7,7 +7,6 @@ pub enum FliError {
     NameLen,
     LocalTime,
     StrFTime,
-    MissingAlignments,
     Getpwuid,
     Getgrgid,
     AlignmentWidthError,
@@ -25,13 +24,12 @@ impl FliError {
             FliError::NameLen => 4,
             FliError::LocalTime => 5,
             FliError::StrFTime => 6,
-            FliError::MissingAlignments => 7,
-            FliError::Getpwuid => 8,
-            FliError::Getgrgid => 9,
-            FliError::AlignmentWidthError => 10,
-            FliError::EntryAlreadyCachedErr => 11,
-            FliError::ReadLink => 12,
-            FliError::WrongEntryType => 13,
+            FliError::Getpwuid => 7,
+            FliError::Getgrgid => 8,
+            FliError::AlignmentWidthError => 9,
+            FliError::EntryAlreadyCachedErr => 10,
+            FliError::ReadLink => 11,
+            FliError::WrongEntryType => 12,
         }
     }
 }

@@ -10,7 +10,7 @@ mod utils;
 use dir::OpenDir;
 mod errors;
 mod io;
-use io::Output;
+use io::{OutputLong, OutputShort};
 use output_config::{Alignments, Display, MAX_INT_LEN, Mode, ReturnConfig, Sort, Width};
 
 use crate::{
@@ -49,30 +49,27 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
         }
     }
 
-    let mut output = Output::new(None);
-
     match (config.mode, config.display) {
         (Mode::Stream, Display::Short) => {
             let dir = OpenDir::new(config.path)?;
             //https://www.man7.org/linux/man-pages/man3/readdir.3.html
             // here we need to be very careful , readdir() returns raw pointer to the next entry,
             // so after each iteration, we can consider it as invalid and should not use after
-            for entry in dir {
-                output.stream_short(entry);
-            }
+            let mut output = OutputShort::new();
+            dir.into_iter().for_each(|entry| output.stream_short(entry));
         }
         (Mode::Stream, Display::Long) => {
             let alignments = Alignments {
                 n_link_width: Width::new(MAX_INT_LEN)?,
                 size_width: Width::new(MAX_INT_LEN)?,
             };
+            let mut output = OutputLong::new(alignments);
             let dir = OpenDir::new(config.path)?;
-            output.alignments = Some(alignments);
-            for entry in dir {
-                output.stream_long(entry)?;
-            }
+            dir.into_iter()
+                .try_for_each(|entry| output.stream_long(entry))?;
         }
         (Mode::Alloc(_), Display::Short) => {
+            let mut output = OutputShort::new();
             let mut arena = ShortTable::new();
             OpenDir::new(config.path)?.try_for_each(|e| arena.push(e))?;
             arena.sort_by();
@@ -83,11 +80,10 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             OpenDir::new(config.path)?.try_for_each(|e| arena.push(e))?;
             arena.sort_by(sort);
             let alignments = arena.get_alignments()?;
-            output.alignments = Some(alignments);
+            let mut output = OutputLong::new(alignments);
             output.push_arena_long(arena)?;
         }
     }
-    output.flush();
     Ok(())
 }
 
