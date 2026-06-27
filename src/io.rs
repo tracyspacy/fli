@@ -1,7 +1,7 @@
 use crate::cache::ByteCache;
 use crate::dir::{DirEntry, Metadata};
-use crate::entry_table::EntryTable;
-use crate::errors::{FliError::MissingAlignments, FliResult};
+use crate::entry_table::{LongTable, ShortTable};
+use crate::errors::FliResult;
 use crate::output_config::{Alignments, DEF_INT_BYTES};
 use crate::utils::align_int;
 use libc::{STDOUT_FILENO, write};
@@ -11,6 +11,9 @@ const CACHE_SIZE: usize = 50;
 // should be enough
 // seems 30-32 is general limit
 const CACHE_VALUE_SIZE: usize = 32;
+const DELIMITER: &[u8] = b"  ";
+const NEW_LINE: &[u8] = b"\n";
+const ARROW: &[u8] = b" -> ";
 
 // helper write
 fn write_bytes(bytes: &[u8]) {
@@ -50,16 +53,58 @@ impl Buffer {
     }
 }
 
+impl Drop for OutputShort {
+    fn drop(&mut self) {
+        self.buffer.flush();
+    }
+}
+
+impl Drop for OutputLong {
+    fn drop(&mut self) {
+        self.buffer.flush();
+    }
+}
+
+pub struct OutputShort {
+    buffer: Buffer,
+}
+
+impl OutputShort {
+    pub fn new() -> Self {
+        Self {
+            buffer: Buffer::new(),
+        }
+    }
+    fn output_name_and_type(&mut self, name: &[u8], f_type: &[u8]) {
+        self.buffer.push_bytes(f_type);
+        self.buffer.push_bytes(name);
+        self.buffer.push_bytes(NEW_LINE);
+    }
+    pub fn stream_short(&mut self, entry: DirEntry) {
+        self.output_name_and_type(
+            entry.name().to_bytes(),
+            entry.entry_type().emoji_view().as_bytes(),
+        );
+    }
+    pub fn push_arena_short(&mut self, arena: ShortTable) {
+        arena.indexes().for_each(|idx| {
+            let e_type_str = arena.entry_type_by_index(idx).emoji_view();
+            let name = arena.name_by_index(idx);
+            self.output_name_and_type(name, e_type_str.as_bytes());
+        });
+    }
+}
+
 //probably replace aligmnets with struct {size,n_link,user,group} but for now size and n_link should be enough
-pub struct Output {
+pub struct OutputLong {
     buffer: Buffer,
     names_cache: ByteCache<CACHE_SIZE, CACHE_VALUE_SIZE>,
     groups_cache: ByteCache<CACHE_SIZE, CACHE_VALUE_SIZE>,
-    pub alignments: Option<Alignments>,
+    alignments: Alignments,
 }
 
-impl Output {
-    pub fn new(alignments: Option<Alignments>) -> Self {
+impl OutputLong {
+    pub fn new(alignments: Alignments) -> Self {
         Self {
             buffer: Buffer::new(),
             names_cache: ByteCache::new(),
@@ -71,68 +116,59 @@ impl Output {
     fn output_name_and_type(&mut self, name: &[u8], f_type: &[u8]) {
         self.buffer.push_bytes(f_type);
         self.buffer.push_bytes(name);
-        self.buffer.push_bytes(b"\n");
+        self.buffer.push_bytes(NEW_LINE);
     }
 
     fn output_name_type_and_link(&mut self, name: &[u8], f_type: &[u8], link: &[u8]) {
         self.buffer.push_bytes(f_type);
         self.buffer.push_bytes(name);
-        self.buffer.push_bytes(b" -> ");
+        self.buffer.push_bytes(ARROW);
         self.buffer.push_bytes(link);
-        self.buffer.push_bytes(b"\n");
+        self.buffer.push_bytes(NEW_LINE);
     }
 
     //alignments could be none! need to handle
     fn output_metadata_w_alignments(&mut self, m: &Metadata) -> FliResult<()> {
-        if let Some(aligments) = &self.alignments {
-            self.buffer.push_bytes(&m.mode_bytes());
-            self.buffer.push_bytes(b"  ");
-            let mut nlink_buf = DEF_INT_BYTES;
-            let aligned = align_int(&mut nlink_buf, m.n_link(), &aligments.n_link_width);
-            self.buffer.push_bytes(aligned);
-            self.buffer.push_bytes(b"  ");
+        let alignments = &self.alignments;
+        self.buffer.push_bytes(&m.mode_bytes());
+        self.buffer.push_bytes(DELIMITER);
+        let mut nlink_buf = DEF_INT_BYTES;
+        let aligned = align_int(&mut nlink_buf, m.n_link(), &alignments.n_link_width);
+        self.buffer.push_bytes(aligned);
+        self.buffer.push_bytes(DELIMITER);
 
-            //adding cache
-            let uid = m.get_pw_uid();
-            let name_bytes = if let Some(cached_name) = self.names_cache.get(uid) {
-                cached_name
-            } else {
-                let user = m.user_bytes()?;
-                self.names_cache.insert(uid, user)?;
-                user
-            };
-            self.buffer.push_bytes(name_bytes);
-            self.buffer.push_bytes(b"  ");
-
-            let gid = m.get_gr_gid();
-            let group_bytes = if let Some(cached_group) = self.groups_cache.get(gid) {
-                cached_group
-            } else {
-                let group = m.group_bytes()?;
-                self.groups_cache.insert(gid, group)?;
-                group
-            };
-            self.buffer.push_bytes(group_bytes);
-            self.buffer.push_bytes(b"  ");
-
-            let mut size_buf = DEF_INT_BYTES;
-            let aligned = align_int(&mut size_buf, m.size(), &aligments.size_width);
-            self.buffer.push_bytes(aligned);
-            self.buffer.push_bytes(b"  ");
-            let lm_time = m.last_modified_fmt()?;
-            self.buffer.push_bytes(&lm_time);
-            self.buffer.push_bytes(b"  ");
+        //adding cache
+        let uid = m.get_pw_uid();
+        let name_bytes = if let Some(cached_name) = self.names_cache.get(uid) {
+            cached_name
         } else {
-            return Err(MissingAlignments);
-        }
-        Ok(())
-    }
+            let user = m.user_bytes()?;
+            self.names_cache.insert(uid, user)?;
+            user
+        };
+        self.buffer.push_bytes(name_bytes);
+        self.buffer.push_bytes(DELIMITER);
 
-    pub fn stream_short(&mut self, entry: DirEntry) {
-        self.output_name_and_type(
-            entry.name().to_bytes(),
-            entry.entry_type().emoji_view().as_bytes(),
-        );
+        let gid = m.get_gr_gid();
+        let group_bytes = if let Some(cached_group) = self.groups_cache.get(gid) {
+            cached_group
+        } else {
+            let group = m.group_bytes()?;
+            self.groups_cache.insert(gid, group)?;
+            group
+        };
+        self.buffer.push_bytes(group_bytes);
+        self.buffer.push_bytes(DELIMITER);
+
+        let mut size_buf = DEF_INT_BYTES;
+        let aligned = align_int(&mut size_buf, m.size(), &alignments.size_width);
+        self.buffer.push_bytes(aligned);
+        self.buffer.push_bytes(DELIMITER);
+        let lm_time = m.last_modified_fmt()?;
+        self.buffer.push_bytes(&lm_time);
+        self.buffer.push_bytes(DELIMITER);
+
+        Ok(())
     }
 
     pub fn stream_long(&mut self, entry: DirEntry) -> FliResult<()> {
@@ -150,34 +186,19 @@ impl Output {
         Ok(())
     }
 
-    pub fn push_arena_short(&mut self, arena: EntryTable) {
-        for i in 0..arena.index.len() {
-            let entry = &arena.entries[arena.index[i]];
-            let e_type_str = entry.d_type.emoji_view();
-            let name = arena.name_by_index(arena.index[i]);
-            self.output_name_and_type(name, e_type_str.as_bytes());
-        }
-    }
-
-    //prints short if none, need to decided if return as it is or handle error?
-    pub fn push_arena_long(&mut self, arena: EntryTable) -> FliResult<()> {
-        for i in 0..arena.index.len() {
-            let entry = &arena.entries[arena.index[i]];
-            if let Some(m) = &entry.metadata {
-                self.output_metadata_w_alignments(m)?;
-            }
-            let entry_type = &entry.d_type;
-            let name = arena.name_by_index(arena.index[i]);
+    pub fn push_arena_long(&mut self, arena: LongTable) -> FliResult<()> {
+        for idx in arena.indexes() {
+            let m = arena.metadata_by_index(idx);
+            self.output_metadata_w_alignments(m)?;
+            let entry_type = arena.entry_type_by_index(idx);
+            let name = arena.name_by_index(idx);
             if !entry_type.is_symlink() {
                 self.output_name_and_type(name, entry_type.emoji_view().as_bytes());
             } else {
-                let symlink = arena.sym_link_by_index(arena.index[i]);
+                let symlink = arena.sym_link_by_index(idx);
                 self.output_name_type_and_link(name, entry_type.emoji_view().as_bytes(), symlink);
             }
         }
         Ok(())
-    }
-    pub fn flush(&mut self) {
-        self.buffer.flush();
     }
 }

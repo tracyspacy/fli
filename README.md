@@ -21,12 +21,13 @@ While working on fli, another aspect of my interest and motivation is to check i
 - rpi zero w : **18 KB**.
 
 #### Current display options:
-- `fli` : short (name and type) not sorted output  - direct stream, no heap allocation
-- `fli -s`: short (name and type) sorted by name output - uses heap allocation
-- `fli -l` : long (name, type, metadata ) not sorted output and fixed-sized alignment (20 chars for size and n_link) - direct stream, no heap allocation
-- `fli -l -s`: long (name, type, metadata ) sorted by **name** output and dynamic alignment - uses heap allocation.
-- `fli -l -S`: long (name, type, metadata ) sorted by **size** output and dynamic alignment - uses heap allocation.
-- `fli -l -t`: long (name, type, metadata ) sorted by **time** output and dynamic alignment - uses heap allocation.
+
+**Default** `fli` : short (name and type) sorted by **name**
+**FLAGS**:
+- `-l` : long listing format (*name, type, metadata*). Default sorting is by **name**. 
+- `-S `: with `-l` long listing format sorted by **size**, smallest first.
+- `-t` : with `-l` long listing format sorted by **time**, oldest first.
+- `-U` : do not sort, list entries in directory order. Alignment is fixed-sized (20 chars for size and n_link) - direct stream, no heap allocation.
 
 New display options may be added soon.
 
