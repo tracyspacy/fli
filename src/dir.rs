@@ -1,9 +1,12 @@
-use crate::errors::{
-    FliError::{
-        DirFd, FStatAt, Getgrgid, Getpwuid, LocalTime, OpenDirError, ReadLink, StrFTime,
-        WrongEntryType,
+use crate::{
+    errors::{
+        FliError::{
+            DirFd, FStatAt, Getgrgid, Getpwuid, LocalTime, OpenDirError, ReadLink, StrFTime,
+            WrongEntryType,
+        },
+        FliResult,
     },
-    FliResult,
+    output_config::View,
 };
 use core::ffi::c_char;
 /*
@@ -75,25 +78,41 @@ pub struct DirEntry {
     dirfd: i32,
     dirent: *mut libc::dirent,
 }
+#[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum EntryType {
-    Directory,
-    RegularFile,
-    SymLink,
-    Unknown,
-    Other,
+    Directory = 0,
+    RegularFile = 1,
+    SymLink = 2,
+    Unknown = 3,
+    Other = 4,
 }
 
+const ETFMT: &[u8] =
+    b"\xF0\x9F\x97\x82\xEF\xB8\x8F \xF0\x9F\x93\x84 \xF0\x9F\x94\x97 ?  </DIR> <FILE> <LINK> ";
+
+// check carefully if overlaps
+const ETOFFSET: [(u8, u8); 10] = [
+    (0, 8),  // folder emoji
+    (8, 5),  // file emoji
+    (13, 5), // link emoji
+    (17, 3), // unknown
+    (20, 1), // empty
+    (21, 7), // </DIR>+whitespace
+    (28, 7), // <FILE>+whitespace
+    (35, 7), // <LINK>+whitespace
+    (17, 3), // reuse of unknown
+    (20, 1), // reuse of empty
+];
+
 impl EntryType {
-    pub const fn emoji_view(&self) -> &str {
-        match self {
-            EntryType::Directory => " 🗂️  ",
-            EntryType::RegularFile => " 📄 ",
-            EntryType::SymLink => " 🔗 ",
-            EntryType::Unknown => " ? ",
-            EntryType::Other => " ",
-        }
+    #[inline(always)]
+    pub fn view_fmt(self, adj: View) -> &'static [u8] {
+        let idx = self as usize + adj as usize;
+        let (s, e) = ETOFFSET[idx];
+        &ETFMT[s as usize..s as usize + e as usize]
     }
+    #[inline(always)]
     pub fn is_symlink(&self) -> bool {
         matches!(self, EntryType::SymLink)
     }

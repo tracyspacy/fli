@@ -2,7 +2,7 @@ use crate::cache::ByteCache;
 use crate::dir::{DirEntry, Metadata};
 use crate::entry_table::{LongTable, ShortTable};
 use crate::errors::FliResult;
-use crate::output_config::{Alignments, DEF_INT_BYTES};
+use crate::output_config::{Alignments, DEF_INT_BYTES, View};
 use crate::utils::align_int;
 use libc::{STDOUT_FILENO, write};
 //4 kb sounds nice
@@ -80,17 +80,14 @@ impl OutputShort {
         self.buffer.push_bytes(name);
         self.buffer.push_bytes(NEW_LINE);
     }
-    pub fn stream_short(&mut self, entry: DirEntry) {
-        self.output_name_and_type(
-            entry.name().to_bytes(),
-            entry.entry_type().emoji_view().as_bytes(),
-        );
+    pub fn stream_short(&mut self, entry: DirEntry, view: View) {
+        self.output_name_and_type(entry.name().to_bytes(), entry.entry_type().view_fmt(view));
     }
-    pub fn push_arena_short(&mut self, arena: ShortTable) {
+    pub fn push_arena_short(&mut self, arena: ShortTable, view: View) {
         arena.indexes().for_each(|idx| {
-            let e_type_str = arena.entry_type_by_index(idx).emoji_view();
+            let e_type_str = arena.entry_type_by_index(idx).view_fmt(view);
             let name = arena.name_by_index(idx);
-            self.output_name_and_type(name, e_type_str.as_bytes());
+            self.output_name_and_type(name, e_type_str);
         });
     }
 }
@@ -112,18 +109,14 @@ impl OutputLong {
             alignments,
         }
     }
-
-    fn output_name_and_type(&mut self, name: &[u8], f_type: &[u8]) {
+    // single fn to reduce bin size
+    fn output_name_type_link(&mut self, name: &[u8], f_type: &[u8], link: Option<&[u8]>) {
         self.buffer.push_bytes(f_type);
         self.buffer.push_bytes(name);
-        self.buffer.push_bytes(NEW_LINE);
-    }
-
-    fn output_name_type_and_link(&mut self, name: &[u8], f_type: &[u8], link: &[u8]) {
-        self.buffer.push_bytes(f_type);
-        self.buffer.push_bytes(name);
-        self.buffer.push_bytes(ARROW);
-        self.buffer.push_bytes(link);
+        if let Some(link) = link {
+            self.buffer.push_bytes(ARROW);
+            self.buffer.push_bytes(link);
+        }
         self.buffer.push_bytes(NEW_LINE);
     }
 
@@ -171,33 +164,38 @@ impl OutputLong {
         Ok(())
     }
 
-    pub fn stream_long(&mut self, entry: DirEntry) -> FliResult<()> {
+    pub fn stream_long(&mut self, entry: DirEntry, view: View) -> FliResult<()> {
         let metadata = Metadata::new(&entry)?;
         self.output_metadata_w_alignments(&metadata)?;
         let entry_type = entry.entry_type();
-        let f_type = entry_type.emoji_view().as_bytes();
+        let f_type = entry_type.view_fmt(view);
         let name = entry.name();
+        let (link, path_buf);
         if !entry_type.is_symlink() {
-            self.output_name_and_type(name.to_bytes(), f_type);
+            link = None;
         } else {
             let (path, path_len) = entry.sym_link_with_value(name)?;
-            self.output_name_type_and_link(name.to_bytes(), f_type, &path[..path_len]);
+            path_buf = path;
+            link = Some(&path_buf[..path_len]);
         }
+        self.output_name_type_link(name.to_bytes(), f_type, link);
         Ok(())
     }
 
-    pub fn push_arena_long(&mut self, arena: LongTable) -> FliResult<()> {
+    pub fn push_arena_long(&mut self, arena: LongTable, view: View) -> FliResult<()> {
         for idx in arena.indexes() {
             let m = arena.metadata_by_index(idx);
             self.output_metadata_w_alignments(m)?;
             let entry_type = arena.entry_type_by_index(idx);
+            let type_fmt = entry_type.view_fmt(view);
             let name = arena.name_by_index(idx);
-            if !entry_type.is_symlink() {
-                self.output_name_and_type(name, entry_type.emoji_view().as_bytes());
+
+            let link = if !entry_type.is_symlink() {
+                None
             } else {
-                let symlink = arena.sym_link_by_index(idx);
-                self.output_name_type_and_link(name, entry_type.emoji_view().as_bytes(), symlink);
-            }
+                Some(arena.sym_link_by_index(idx))
+            };
+            self.output_name_type_link(name, type_fmt, link);
         }
         Ok(())
     }

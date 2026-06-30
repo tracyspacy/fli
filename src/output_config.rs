@@ -19,10 +19,17 @@ pub enum Mode {
     Stream,
     Alloc(Sort),
 }
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum View {
+    Emoji = 0,
+    Text = 5,
+}
 
 pub struct ReturnConfig {
     pub mode: Mode,
     pub display: Display,
+    pub view: View,
     pub path: *const libc::c_char,
 }
 
@@ -31,6 +38,7 @@ impl Default for ReturnConfig {
         Self {
             mode: Mode::Alloc(Sort::Name),
             display: Display::Short,
+            view: View::Emoji,
             path: c".".as_ptr(),
         }
     }
