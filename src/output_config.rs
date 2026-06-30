@@ -24,6 +24,7 @@ pub enum Mode {
 pub enum View {
     Emoji = 0,
     Text = 5,
+    Color = 10,
 }
 
 pub struct ReturnConfig {

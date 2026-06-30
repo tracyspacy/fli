@@ -30,7 +30,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
     // default is short and sorted by name output , ie Alloc(Sort::Name)
     let mut config = ReturnConfig::default();
     loop {
-        let opt = unsafe { libc::getopt(argc, argv, c"lStU2".as_ptr()) };
+        let opt = unsafe { libc::getopt(argc, argv, c"lStU02".as_ptr()) };
         if opt == -1 {
             break;
         }
@@ -46,6 +46,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             }
             b'U' => config.mode = Stream,
             b'2' => config.view = View::Text,
+            b'0' => config.view = View::Color,
             _ => {}
         }
     }
@@ -95,7 +96,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
 fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
     match run(argc, argv) {
         Ok(()) => 0,
-        Err(e) => e.to_exit_code(),
+        Err(e) => e as i32,
         //add error printing here
     }
 }

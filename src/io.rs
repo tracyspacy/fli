@@ -12,7 +12,8 @@ const CACHE_SIZE: usize = 50;
 // seems 30-32 is general limit
 const CACHE_VALUE_SIZE: usize = 32;
 const DELIMITER: &[u8] = b"  ";
-const NEW_LINE: &[u8] = b"\n";
+//ansi reset code
+const NEW_LINE: &[u8] = b"\x1B[0m\n";
 const ARROW: &[u8] = b" -> ";
 
 // helper write
