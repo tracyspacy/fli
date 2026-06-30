@@ -20,6 +20,7 @@ While working on fli, another aspect of my interest and motivation is to check i
 - M series mac: **51 KB**,
 - rpi zero w : **18 KB**.
 
+
 #### Current display options:
 
 **Default** `fli` : short (name and type) sorted by **name**
@@ -28,6 +29,8 @@ While working on fli, another aspect of my interest and motivation is to check i
 - `-S `: with `-l` long listing format sorted by **size**, smallest first.
 - `-t` : with `-l` long listing format sorted by **time**, oldest first.
 - `-U` : do not sort, list entries in directory order. Alignment is fixed-sized (20 chars for size and n_link) - direct stream, no heap allocation.
+- `-2` : text output for types :`</DIR> <FILE> <LINK>` instead of default emojis.
+- `-0` : color output for types : Dir: `Blue`, File: `Green`, Link : `Cyan`.   
 
 New display options may be added soon.
 
