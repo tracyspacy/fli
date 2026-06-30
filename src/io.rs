@@ -52,16 +52,10 @@ impl Buffer {
         self.len = 0;
     }
 }
-
-impl Drop for OutputShort {
+// no gain in size, but nicer
+impl Drop for Buffer {
     fn drop(&mut self) {
-        self.buffer.flush();
-    }
-}
-
-impl Drop for OutputLong {
-    fn drop(&mut self) {
-        self.buffer.flush();
+        self.flush();
     }
 }
 
