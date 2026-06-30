@@ -44,24 +44,8 @@ New display options may be added soon.
 
 ## View
 
-<img width="495" height="222" alt="macos" src="https://github.com/user-attachments/assets/7296dff8-2715-4cf2-aa62-05d5936dc59c" />
+<img width="1200" height="800" alt="fli" src="https://github.com/user-attachments/assets/f61beac0-a0a4-4869-b772-644e7fffbda5" />
 
-<img width="197" height="416" alt="rpi zero w" src="https://github.com/user-attachments/assets/d6979f22-55ec-4491-accd-08bc0b587b50" />
-
-
-**Sorted by name Long output:**
-
-<img width="547" height="218" alt="Screenshot 2026-06-09 at 16 38 58" src="https://github.com/user-attachments/assets/f68b924c-d78a-4d4e-86d2-ea38533094de" />
-
-
-**Sorted by size Long output:**
-
-<img width="548" height="201" alt="Screenshot 2026-06-19 at 21 30 28" src="https://github.com/user-attachments/assets/3a409708-ee86-434b-a376-8fd6c26f4f2c" />
-
-
-**Symlink with path**
-
-<img width="838" height="101" alt="Screenshot 2026-06-19 at 21 27 07" src="https://github.com/user-attachments/assets/4943cdde-80d8-486c-9bf1-feebd8a0e75a" />
 
 ### MISC
 
