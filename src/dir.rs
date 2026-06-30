@@ -1,9 +1,12 @@
-use crate::errors::{
-    FliError::{
-        DirFd, FStatAt, Getgrgid, Getpwuid, LocalTime, OpenDirError, ReadLink, StrFTime,
-        WrongEntryType,
+use crate::{
+    errors::{
+        FliError::{
+            DirFd, FStatAt, Getgrgid, Getpwuid, LocalTime, OpenDirError, ReadLink, StrFTime,
+            WrongEntryType,
+        },
+        FliResult,
     },
-    FliResult,
+    output_config::View,
 };
 use core::ffi::c_char;
 /*
@@ -75,24 +78,45 @@ pub struct DirEntry {
     dirfd: i32,
     dirent: *mut libc::dirent,
 }
+#[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum EntryType {
-    Directory,
-    RegularFile,
-    SymLink,
-    Unknown,
-    Other,
+    Directory = 0,
+    RegularFile = 1,
+    SymLink = 2,
+    Unknown = 3,
+    Other = 4,
 }
 
+// emoji&text: each with trailing whitespace except for other
+// color: ansi color codes https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124 , unknown and other are empty
+const ETFMT: &[u8] =
+    b"\xF0\x9F\x97\x82\xEF\xB8\x8F \xF0\x9F\x93\x84 \xF0\x9F\x94\x97 ?  </DIR> <FILE> <LINK> \x1B[0;34m \x1B[0;32m \x1B[0;36m";
+
+// check carefully if overlaps
+const ETOFFSET: [(u8, u8); 15] = [
+    (0, 8),  // folder emoji
+    (8, 5),  // file emoji
+    (13, 5), // link emoji
+    (17, 3), // unknown
+    (20, 0), // empty
+    (21, 7), // </DIR>+whitespace
+    (28, 7), // <FILE>+whitespace
+    (35, 7), // <LINK>+whitespace
+    (17, 3), // reuse of unknown
+    (20, 0), // reuse of empty
+    (42, 7), // blue for dir
+    (50, 7), // green for file
+    (58, 7), // cyan for link
+    (20, 0), // empty for unknown
+    (20, 0), // empty for other
+];
+
 impl EntryType {
-    pub const fn emoji_view(&self) -> &str {
-        match self {
-            EntryType::Directory => " 🗂️  ",
-            EntryType::RegularFile => " 📄 ",
-            EntryType::SymLink => " 🔗 ",
-            EntryType::Unknown => " ? ",
-            EntryType::Other => " ",
-        }
+    pub fn view_fmt(self, adj: View) -> &'static [u8] {
+        let idx = self as usize + adj as usize;
+        let (s, e) = ETOFFSET[idx];
+        &ETFMT[s as usize..s as usize + e as usize]
     }
     pub fn is_symlink(&self) -> bool {
         matches!(self, EntryType::SymLink)
@@ -282,5 +306,53 @@ impl Metadata {
             };
         }
         buf
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::output_config::View;
+    // each with trailing whitespace except for other
+    const FMT: [(EntryType, View, &[u8]); 15] = [
+        (
+            EntryType::Directory,
+            View::Emoji,
+            b"\xF0\x9F\x97\x82\xEF\xB8\x8F ",
+        ),
+        (EntryType::RegularFile, View::Emoji, b"\xF0\x9F\x93\x84 "),
+        (EntryType::SymLink, View::Emoji, b"\xF0\x9F\x94\x97 "),
+        (EntryType::Unknown, View::Emoji, b" ? "),
+        (EntryType::Other, View::Emoji, b""),
+        (EntryType::Directory, View::Text, b"</DIR> "),
+        (EntryType::RegularFile, View::Text, b"<FILE> "),
+        (EntryType::SymLink, View::Text, b"<LINK> "),
+        (EntryType::Unknown, View::Text, b" ? "),
+        (EntryType::Other, View::Text, b""),
+        (EntryType::Directory, View::Color, b"\x1B[0;34m"),
+        (EntryType::RegularFile, View::Color, b"\x1B[0;32m"),
+        (EntryType::SymLink, View::Color, b"\x1B[0;36m"),
+        (EntryType::Unknown, View::Color, b""),
+        (EntryType::Other, View::Color, b""),
+    ];
+
+    #[test]
+    fn et_offset_bounds_test() {
+        ETOFFSET.iter().for_each(|&(s, e)| {
+            let end = s as usize + e as usize;
+            assert!(end <= ETFMT.len(), "exceeds len")
+        });
+    }
+
+    #[test]
+    fn et_view_test() {
+        FMT.iter().for_each(|&(entry_type, view, exp)| {
+            let fmt = entry_type.view_fmt(view);
+            assert_eq!(
+                fmt, exp,
+                "entry type {:?} view: {:?}",
+                entry_type as u8, view as u8
+            )
+        });
     }
 }

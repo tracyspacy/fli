@@ -16,7 +16,7 @@ use output_config::{Alignments, Display, MAX_INT_LEN, Mode, ReturnConfig, Sort, 
 use crate::{
     entry_table::{LongTable, ShortTable},
     errors::FliResult,
-    output_config::Mode::Stream,
+    output_config::{Mode::Stream, View},
 };
 extern crate alloc;
 
@@ -30,7 +30,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
     // default is short and sorted by name output , ie Alloc(Sort::Name)
     let mut config = ReturnConfig::default();
     loop {
-        let opt = unsafe { libc::getopt(argc, argv, c"lStU".as_ptr()) };
+        let opt = unsafe { libc::getopt(argc, argv, c"lStU02".as_ptr()) };
         if opt == -1 {
             break;
         }
@@ -45,6 +45,8 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
                 config.display = Display::Long;
             }
             b'U' => config.mode = Stream,
+            b'2' => config.view = View::Text,
+            b'0' => config.view = View::Color,
             _ => {}
         }
     }
@@ -56,7 +58,8 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             // here we need to be very careful , readdir() returns raw pointer to the next entry,
             // so after each iteration, we can consider it as invalid and should not use after
             let mut output = OutputShort::new();
-            dir.into_iter().for_each(|entry| output.stream_short(entry));
+            dir.into_iter()
+                .for_each(|entry| output.stream_short(entry, config.view));
         }
         (Mode::Stream, Display::Long) => {
             let alignments = Alignments {
@@ -66,14 +69,14 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             let mut output = OutputLong::new(alignments);
             let dir = OpenDir::new(config.path)?;
             dir.into_iter()
-                .try_for_each(|entry| output.stream_long(entry))?;
+                .try_for_each(|entry| output.stream_long(entry, config.view))?;
         }
         (Mode::Alloc(_), Display::Short) => {
             let mut output = OutputShort::new();
             let mut arena = ShortTable::new();
             OpenDir::new(config.path)?.try_for_each(|e| arena.push(e))?;
             arena.sort_by();
-            output.push_arena_short(arena);
+            output.push_arena_short(arena, config.view);
         }
         (Mode::Alloc(sort), Display::Long) => {
             let mut arena = LongTable::new();
@@ -81,7 +84,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             arena.sort_by(sort);
             let alignments = arena.get_alignments()?;
             let mut output = OutputLong::new(alignments);
-            output.push_arena_long(arena)?;
+            output.push_arena_long(arena, config.view)?;
         }
     }
     Ok(())
@@ -93,7 +96,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
 fn main(argc: i32, argv: *const *mut libc::c_char) -> i32 {
     match run(argc, argv) {
         Ok(()) => 0,
-        Err(e) => e.to_exit_code(),
+        Err(e) => e as i32,
         //add error printing here
     }
 }

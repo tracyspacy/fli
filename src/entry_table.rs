@@ -129,7 +129,8 @@ impl EntryTable<Metadata> {
         }
     }
 }
-
+///TODO:
+///add general push fn and reuse - probably could reduce bin size for a few bytes
 impl<M> EntryTable<M> {
     pub fn new() -> Self {
         Self {

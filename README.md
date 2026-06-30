@@ -20,6 +20,7 @@ While working on fli, another aspect of my interest and motivation is to check i
 - M series mac: **51 KB**,
 - rpi zero w : **18 KB**.
 
+
 #### Current display options:
 
 **Default** `fli` : short (name and type) sorted by **name**
@@ -28,6 +29,8 @@ While working on fli, another aspect of my interest and motivation is to check i
 - `-S `: with `-l` long listing format sorted by **size**, smallest first.
 - `-t` : with `-l` long listing format sorted by **time**, oldest first.
 - `-U` : do not sort, list entries in directory order. Alignment is fixed-sized (20 chars for size and n_link) - direct stream, no heap allocation.
+- `-2` : text output for types :`</DIR> <FILE> <LINK>` instead of default emojis.
+- `-0` : color output for types : Dir: `Blue`, File: `Green`, Link : `Cyan`.   
 
 New display options may be added soon.
 
@@ -41,26 +44,60 @@ New display options may be added soon.
 
 ## View
 
-<img width="495" height="222" alt="macos" src="https://github.com/user-attachments/assets/7296dff8-2715-4cf2-aa62-05d5936dc59c" />
-
-<img width="197" height="416" alt="rpi zero w" src="https://github.com/user-attachments/assets/d6979f22-55ec-4491-accd-08bc0b587b50" />
+<img width="1200" height="800" alt="fli" src="https://github.com/user-attachments/assets/f61beac0-a0a4-4869-b772-644e7fffbda5" />
 
 
-**Sorted by name Long output:**
+### MISC
 
-<img width="547" height="218" alt="Screenshot 2026-06-09 at 16 38 58" src="https://github.com/user-attachments/assets/f68b924c-d78a-4d4e-86d2-ea38533094de" />
+```zsh
+//arm-linux-gnueabihf
+file fli
+fli: ELF 32-bit LSB pie executable, ARM, EABI5 version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-armhf.so.3, for GNU/Linux 4.19.255, stripped
 
+readelf -d fli | grep NEEDED
+0x00000001 (NEEDED)                     Shared library: [libc.so.6]
+0x00000001 (NEEDED)                     Shared library: [libgcc_s.so.1]
 
-**Sorted by size Long output:**
-
-<img width="548" height="201" alt="Screenshot 2026-06-19 at 21 30 28" src="https://github.com/user-attachments/assets/3a409708-ee86-434b-a376-8fd6c26f4f2c" />
-
-
-**Symlink with path**
-
-<img width="838" height="101" alt="Screenshot 2026-06-19 at 21 27 07" src="https://github.com/user-attachments/assets/4943cdde-80d8-486c-9bf1-feebd8a0e75a" />
+size fli
+text    data     bss     dec     hex filename
+15452     504       4   15960    3e58 fli
+```
 
 
 ### Benchmarks
+*it is faster than ls, but it is not the main focus. Still probably need a more sophisticated benchmark later*
+```zsh
+//20k empty files, sorted by name, macos m-series.
+Benchmark 1: /Users/tracyspacy/Documents/GitHub/fli/target/release/fli -l -U
+  Time (mean ± σ):      39.8 ms ±   0.6 ms    [User: 14.0 ms, System: 24.6 ms]
+  Range (min … max):    38.5 ms …  42.6 ms    60 runs
 
-<img width="707" height="339" alt="Screenshot 2026-06-19 at 21 35 22" src="https://github.com/user-attachments/assets/3e575759-6b4b-4fb5-845b-3fb6f558ad26" />
+Benchmark 2: /Users/tracyspacy/Documents/GitHub/fli/target/release/fli -l
+  Time (mean ± σ):      46.3 ms ±   0.4 ms    [User: 19.6 ms, System: 25.3 ms]
+  Range (min … max):    45.0 ms …  47.4 ms    55 runs
+
+Benchmark 3: /Users/tracyspacy/Documents/GitHub/fli/target/release/fli -l -t
+  Time (mean ± σ):      40.8 ms ±   0.6 ms    [User: 14.3 ms, System: 25.0 ms]
+  Range (min … max):    39.4 ms …  42.8 ms    62 runs
+
+Benchmark 4: ls -l
+  Time (mean ± σ):     145.5 ms ±   1.0 ms    [User: 82.3 ms, System: 61.8 ms]
+  Range (min … max):   144.6 ms … 148.3 ms    19 runs
+
+Benchmark 5: ls -l -U
+  Time (mean ± σ):     145.4 ms ±   0.3 ms    [User: 82.4 ms, System: 61.7 ms]
+  Range (min … max):   144.6 ms … 146.0 ms    19 runs
+
+Benchmark 6: ls -l -t
+  Time (mean ± σ):      98.2 ms ±   0.5 ms    [User: 35.7 ms, System: 61.2 ms]
+  Range (min … max):    96.8 ms …  99.3 ms    28 runs
+
+Summary
+  /Users/tracyspacy/Documents/GitHub/fli/target/release/fli -l -U ran
+    1.02 ± 0.02 times faster than /Users/tracyspacy/Documents/GitHub/fli/target/release/fli -l -t
+    1.16 ± 0.02 times faster than /Users/tracyspacy/Documents/GitHub/fli/target/release/fli -l
+    2.47 ± 0.04 times faster than ls -l -t
+    3.65 ± 0.06 times faster than ls -l -U
+    3.65 ± 0.06 times faster than ls -l
+```
+
