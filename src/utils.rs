@@ -101,8 +101,15 @@ pub fn natural_cmp(left: &[u8], right: &[u8]) -> core::cmp::Ordering {
 // helper to reuse sort_unstable_by() with own cmp fn
 // &dyn allows to optimize bin size for arm-unknown-linux-gnueabihf
 // so it not duplicating std core::slice::sort::unstable::quicksort::quicksort
-pub fn sort_index_by(index_vec: &mut [usize], cmp: &dyn Fn(usize, usize) -> core::cmp::Ordering) {
-    index_vec.sort_unstable_by(|&a, &b| cmp(a, b))
+// arm-unknown-linux-gnueabihf related:
+// while sort_index_by added 28 bytes
+// adding branching inside closure actually makes quicksort smaller by 980b
+pub fn sort_index_by(
+    index_vec: &mut [usize],
+    is_rev: bool,
+    cmp: &dyn Fn(usize, usize) -> core::cmp::Ordering,
+) {
+    index_vec.sort_unstable_by(|&a, &b| if is_rev { cmp(b, a) } else { cmp(a, b) })
 }
 
 #[cfg(test)]

@@ -30,7 +30,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
     // default is short and sorted by name output , ie Alloc(Sort::Name)
     let mut config = ReturnConfig::default();
     loop {
-        let opt = unsafe { libc::getopt(argc, argv, c"lStU02".as_ptr()) };
+        let opt = unsafe { libc::getopt(argc, argv, c"lrStU02".as_ptr()) };
         if opt == -1 {
             break;
         }
@@ -47,6 +47,7 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             b'U' => config.mode = Stream,
             b'2' => config.view = View::Text,
             b'0' => config.view = View::Color,
+            b'r' => config.is_reverse = true,
             _ => {}
         }
     }
@@ -75,13 +76,13 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
             let mut output = OutputShort::new();
             let mut arena = ShortTable::new();
             OpenDir::new(config.path)?.try_for_each(|e| arena.push(e))?;
-            arena.sort_by();
+            arena.sort_by(config.is_reverse);
             output.push_arena_short(arena, config.view);
         }
         (Mode::Alloc(sort), Display::Long) => {
             let mut arena = LongTable::new();
             OpenDir::new(config.path)?.try_for_each(|e| arena.push(e))?;
-            arena.sort_by(sort);
+            arena.sort_by(sort, config.is_reverse);
             let alignments = arena.get_alignments()?;
             let mut output = OutputLong::new(alignments);
             output.push_arena_long(arena, config.view)?;
