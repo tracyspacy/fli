@@ -107,9 +107,9 @@ pub fn natural_cmp(left: &[u8], right: &[u8]) -> core::cmp::Ordering {
 pub fn sort_index_by(
     index_vec: &mut [usize],
     is_rev: bool,
-    cmp: &dyn Fn(usize, usize) -> core::cmp::Ordering,
+    compare: &dyn Fn(usize, usize) -> core::cmp::Ordering,
 ) {
-    index_vec.sort_unstable_by(|&a, &b| if is_rev { cmp(b, a) } else { cmp(a, b) })
+    index_vec.sort_unstable_by(|&a, &b| if is_rev { compare(b, a) } else { compare(a, b) })
 }
 
 #[cfg(test)]
