@@ -167,4 +167,30 @@ mod test {
             assert_eq!(left, res, "wrong cmp {:?}", str::from_utf8(name_l),)
         }
     }
+
+    // just fun custom comparator which compare based on trailing zeroes
+    // 1 => 0000 0001 -> 0 traiing zeroes
+    // 2 => 0000 0010 -> 1 trailing zero
+    // 3 => 0000 0011 -> 0 trailing zeroes
+    // 4 => 0000 0100 -> 2 trailing zeroes
+    // etc
+    fn custom_comparator(a: usize, b: usize) -> core::cmp::Ordering {
+        match (a.trailing_zeros(), b.trailing_zeros()) {
+            (a_z, b_z) if a_z > b_z => core::cmp::Ordering::Greater,
+            (a_z, b_z) if a_z < b_z => core::cmp::Ordering::Less,
+            _ => core::cmp::Ordering::Equal,
+        }
+    }
+
+    #[test]
+    fn sort_index_by_custom_cmp_test() {
+        //trailing zeroes for array nums :[0,2,4,1,3]
+        let mut array: [usize; 5] = [9, 12, 16, 6, 8];
+        let asc_sorted_arr: [usize; 5] = [9, 6, 12, 8, 16];
+        let desc_sorted_arr: [usize; 5] = [16, 8, 12, 6, 9];
+        sort_index_by(&mut array, false, &|a, b| custom_comparator(a, b));
+        assert_eq!(array, asc_sorted_arr);
+        sort_index_by(&mut array, true, &|a, b| custom_comparator(a, b));
+        assert_eq!(array, desc_sorted_arr);
+    }
 }
