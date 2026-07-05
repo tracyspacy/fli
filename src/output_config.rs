@@ -31,6 +31,7 @@ pub struct ReturnConfig {
     pub mode: Mode,
     pub display: Display,
     pub view: View,
+    pub is_reverse: bool,
     pub path: *const libc::c_char,
 }
 
@@ -40,6 +41,7 @@ impl Default for ReturnConfig {
             mode: Mode::Alloc(Sort::Name),
             display: Display::Short,
             view: View::Emoji,
+            is_reverse: false,
             path: c".".as_ptr(),
         }
     }

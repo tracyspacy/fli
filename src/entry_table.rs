@@ -44,8 +44,8 @@ impl EntryTable<()> {
         self.index.push(idx);
         Ok(())
     }
-    pub fn sort_by(&mut self) {
-        self.sort_by_name();
+    pub fn sort_by(&mut self, is_rev: bool) {
+        self.sort_by_name(is_rev);
     }
 }
 
@@ -104,28 +104,28 @@ impl EntryTable<Metadata> {
             size_width: Width::new(max_size)?,
         })
     }
-    fn sort_by_size(&mut self) {
+    fn sort_by_size(&mut self, is_rev: bool) {
         let entries = &self.entries;
-        sort_index_by(&mut self.index, &|a: usize, b: usize| {
+        sort_index_by(&mut self.index, is_rev, &|a: usize, b: usize| {
             let a_m = &entries[a].metadata;
             let b_m = &entries[b].metadata;
             a_m.size().cmp(&b_m.size())
         });
     }
-    fn sort_by_time(&mut self) {
+    fn sort_by_time(&mut self, is_rev: bool) {
         let entries = &self.entries;
-        sort_index_by(&mut self.index, &|a: usize, b: usize| {
+        sort_index_by(&mut self.index, is_rev, &|a: usize, b: usize| {
             let a_m = &entries[a].metadata;
             let b_m = &entries[b].metadata;
             a_m.st_mtime().cmp(&b_m.st_mtime())
         });
     }
 
-    pub fn sort_by(&mut self, sort_type: Sort) {
+    pub fn sort_by(&mut self, sort_type: Sort, is_rev: bool) {
         match sort_type {
-            Sort::Name => self.sort_by_name(),
-            Sort::Size => self.sort_by_size(),
-            Sort::Time => self.sort_by_time(),
+            Sort::Name => self.sort_by_name(is_rev),
+            Sort::Size => self.sort_by_size(is_rev),
+            Sort::Time => self.sort_by_time(is_rev),
         }
     }
 }
@@ -165,10 +165,10 @@ impl<M> EntryTable<M> {
         let symlink_len = entry.sl_path_len as usize;
         &self.arena[symlink_offset..symlink_offset + symlink_len]
     }
-    fn sort_by_name(&mut self) {
+    fn sort_by_name(&mut self, is_rev: bool) {
         let arena = &self.arena;
         let entries = &self.entries;
-        sort_index_by(&mut self.index, &|a, b| {
+        sort_index_by(&mut self.index, is_rev, &|a, b| {
             let ea: &Entry<M> = &entries[a];
             let eb: &Entry<M> = &entries[b];
             let na = &arena[ea.name_offset..ea.name_offset + ea.name_len as usize];

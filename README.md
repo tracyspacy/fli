@@ -28,6 +28,7 @@ While working on fli, another aspect of my interest and motivation is to check i
 - `-l` : long listing format (*name, type, metadata*). Default sorting is by **name**. 
 - `-S `: with `-l` long listing format sorted by **size**, smallest first.
 - `-t` : with `-l` long listing format sorted by **time**, oldest first.
+- `-r` : reverse order while sorting.
 - `-U` : do not sort, list entries in directory order. Alignment is fixed-sized (20 chars for size and n_link) - direct stream, no heap allocation.
 - `-2` : text output for types :`</DIR> <FILE> <LINK>` instead of default emojis.
 - `-0` : color output for types : Dir: `Blue`, File: `Green`, Link : `Cyan`.   
@@ -60,7 +61,7 @@ readelf -d fli | grep NEEDED
 
 size fli
 text    data     bss     dec     hex filename
-15452     504       4   15960    3e58 fli
+14501     504       4   15009    3aa1 fli
 ```
 
 
@@ -100,4 +101,3 @@ Summary
     3.65 ± 0.06 times faster than ls -l -U
     3.65 ± 0.06 times faster than ls -l
 ```
-
