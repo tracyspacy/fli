@@ -61,7 +61,7 @@ readelf -d fli | grep NEEDED
 
 size fli
 text    data     bss     dec     hex filename
-14501     504       4   15009    3aa1 fli
+15308     520       4   15832    3dd8 fli
 ```
 
 
