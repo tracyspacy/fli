@@ -33,6 +33,9 @@ While working on fli, another aspect of my interest and motivation is to check i
 - `-2` : text output for types :`</DIR> <FILE> <LINK>` instead of default emojis.
 - `-0` : color output for types : Dir: `Blue`, File: `Green`, Link : `Cyan`.   
 
+**Path can be specified as an argument:** 
+`fli /` or `fli /target/release/fli`
+
 New display options may be added soon.
 
 ### Build
