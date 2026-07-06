@@ -112,6 +112,32 @@ pub fn sort_index_by(
     index_vec.sort_unstable_by(|&a, &b| if is_rev { compare(b, a) } else { compare(a, b) })
 }
 
+// since basename() is not available on arm-unknown-linux-gnueabihf
+// https://stackoverflow.com/questions/5802191/use-gnu-versions-of-basename-and-dirname-in-c-source
+// https://www.man7.org/linux/man-pages/man3/strchr.3.html
+// ! we are mutating path here. A bit of relief that it is from arg and not reuse original
+// should be very carefull here
+pub fn base_dir_names(path: *mut libc::c_char) -> (*const libc::c_char, *const libc::c_char) {
+    unsafe {
+        match libc::strrchr(path, b'/' as libc::c_int) {
+            // easiest - if no / eg fli todo.txt => dir is default "." and file == path
+            p if p.is_null() => (c".".as_ptr(), path),
+            p => {
+                // p is pointer to the first occurence of /
+                //retrieving name eg target/release/fli -> fli
+                let name = p.add(1);
+                // if path itself is / like in fli /.file
+                if p == path {
+                    (c"/".as_ptr(), name)
+                } else {
+                    *p = 0;
+                    (path, name)
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::output_config::DEF_INT_BYTES;
@@ -142,6 +168,12 @@ mod test {
         (b"aaaa", b"bbbb", core::cmp::Ordering::Less),
         (b"abcd", b"efg", core::cmp::Ordering::Less),
         //(b"Video", b"fli", core::cmp::Ordering::Greater), - known issue!
+    ];
+
+    const BASE_DIR_NAMES: [(&core::ffi::CStr, &core::ffi::CStr, &core::ffi::CStr); 3] = [
+        (c"target/release/fli", c"target/release", c"fli"),
+        (c"fli", c".", c"fli"),
+        (c"/.file", c"/", c".file"),
     ];
 
     #[test]
@@ -192,5 +224,17 @@ mod test {
         assert_eq!(array, asc_sorted_arr);
         sort_index_by(&mut array, true, &|a, b| custom_comparator(a, b));
         assert_eq!(array, desc_sorted_arr);
+    }
+
+    #[test]
+    fn base_name_test() {
+        for (path, new_path_r, name_r) in BASE_DIR_NAMES {
+            let mut buf = path.to_bytes_with_nul().to_vec();
+            let path_ptr = buf.as_mut_ptr();
+            let (new_path_l, name_l) = base_dir_names(path_ptr as *mut libc::c_char);
+            let new_path_l_cstr = unsafe { core::ffi::CStr::from_ptr(new_path_l) };
+            let name_l_cstr = unsafe { core::ffi::CStr::from_ptr(name_l) };
+            assert_eq!((new_path_l_cstr, name_l_cstr), (new_path_r, name_r))
+        }
     }
 }

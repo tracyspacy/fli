@@ -13,6 +13,8 @@ pub enum FliError {
     EntryAlreadyCachedErr = 10,
     ReadLink = 11,
     WrongEntryType = 12,
+    FindEntry = 13,
+    NoSuchFileOrDir = 14,
 }
 
 pub type FliResult<T> = Result<T, FliError>;

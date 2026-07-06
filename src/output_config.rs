@@ -9,7 +9,8 @@ pub enum Sort {
     Size,
     Time,
 }
-
+#[derive(PartialEq, Clone, Copy)]
+#[repr(u8)]
 pub enum Display {
     Short,
     Long,
@@ -33,6 +34,7 @@ pub struct ReturnConfig {
     pub view: View,
     pub is_reverse: bool,
     pub path: *const libc::c_char,
+    pub is_single_file: bool,
 }
 
 impl Default for ReturnConfig {
@@ -43,6 +45,7 @@ impl Default for ReturnConfig {
             view: View::Emoji,
             is_reverse: false,
             path: c".".as_ptr(),
+            is_single_file: false,
         }
     }
 }
