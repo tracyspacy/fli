@@ -33,6 +33,9 @@ While working on fli, another aspect of my interest and motivation is to check i
 - `-2` : text output for types :`</DIR> <FILE> <LINK>` instead of default emojis.
 - `-0` : color output for types : Dir: `Blue`, File: `Green`, Link : `Cyan`.   
 
+**Path can be specified as an argument:** 
+`fli /` or `fli /target/release/fli`
+
 New display options may be added soon.
 
 ### Build
@@ -61,7 +64,7 @@ readelf -d fli | grep NEEDED
 
 size fli
 text    data     bss     dec     hex filename
-14501     504       4   15009    3aa1 fli
+15308     520       4   15832    3dd8 fli
 ```
 
 

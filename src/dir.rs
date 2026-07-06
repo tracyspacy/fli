@@ -1,8 +1,8 @@
 use crate::{
     errors::{
         FliError::{
-            DirFd, FStatAt, Getgrgid, Getpwuid, LocalTime, OpenDirError, ReadLink, StrFTime,
-            WrongEntryType,
+            DirFd, FStatAt, Getgrgid, Getpwuid, LocalTime, NoSuchFileOrDir, OpenDirError, ReadLink,
+            StrFTime, WrongEntryType,
         },
         FliResult,
     },
@@ -15,6 +15,18 @@ opens a directory stream corresponding to
 the directory name, and returns a pointer to the directory stream.
 The stream is positioned at the first entry in the directory.
 */
+
+//helper to check type prior
+//
+pub fn is_dir(path: *const c_char) -> FliResult<bool> {
+    let mut stat_buf = core::mem::MaybeUninit::<libc::stat>::uninit();
+    if unsafe { libc::stat(path, stat_buf.as_mut_ptr()) } != 0 {
+        Err(NoSuchFileOrDir)
+    } else {
+        let mode = unsafe { stat_buf.assume_init().st_mode };
+        Ok(mode & libc::S_IFMT == libc::S_IFDIR)
+    }
+}
 
 pub struct OpenDir {
     dir: *mut libc::DIR,
@@ -212,7 +224,15 @@ impl Metadata {
         let name = unsafe { (*entry.dirent).d_name };
         //  https://man.freebsd.org/cgi/man.cgi?query=fstatat&sektion=2&n=1
         // can return -1 ie error
-        let s = unsafe { libc::fstatat(entry.dirfd, name.as_ptr(), stat_buf.as_mut_ptr(), 0) };
+        // https://www.man7.org/linux/man-pages/man2/access.2.html regarding AT_SYMLINK_NOFOLLOW
+        let s = unsafe {
+            libc::fstatat(
+                entry.dirfd,
+                name.as_ptr(),
+                stat_buf.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
         if s == 0 {
             Ok(Self(unsafe { stat_buf.assume_init() }))
         } else {
