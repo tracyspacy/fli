@@ -224,7 +224,15 @@ impl Metadata {
         let name = unsafe { (*entry.dirent).d_name };
         //  https://man.freebsd.org/cgi/man.cgi?query=fstatat&sektion=2&n=1
         // can return -1 ie error
-        let s = unsafe { libc::fstatat(entry.dirfd, name.as_ptr(), stat_buf.as_mut_ptr(), 0) };
+        // https://www.man7.org/linux/man-pages/man2/access.2.html regarding AT_SYMLINK_NOFOLLOW
+        let s = unsafe {
+            libc::fstatat(
+                entry.dirfd,
+                name.as_ptr(),
+                stat_buf.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
         if s == 0 {
             Ok(Self(unsafe { stat_buf.assume_init() }))
         } else {
