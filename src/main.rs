@@ -14,9 +14,11 @@ use io::{OutputLong, OutputShort};
 use output_config::{Alignments, Display, MAX_INT_LEN, Mode, ReturnConfig, Sort, Width};
 
 use crate::{
+    dir::is_dir,
     entry_table::{LongTable, ShortTable},
     errors::FliResult,
     output_config::{Mode::Stream, View},
+    utils::base_dir_names,
 };
 extern crate alloc;
 
@@ -65,20 +67,20 @@ fn run(argc: i32, argv: *const *mut libc::c_char) -> FliResult<()> {
         }
     };
 
-    if !crate::dir::is_dir(config.path)? {
+    if !is_dir(config.path)? {
         config.is_single_file = true;
     }
 
     //rewrite to a single option..
     match (config.mode, config.display, config.is_single_file) {
         (_, _, true) => {
-            let (dir_name, base_name) = crate::utils::base_dir_names(config.path.cast_mut());
+            let (dir_name, base_name) = base_dir_names(config.path.cast_mut());
             config.path = dir_name;
             let name_cstr = unsafe { core::ffi::CStr::from_ptr(base_name) };
             let mut dir = OpenDir::new(config.path)?;
             let entry = dir
                 .find(|e| e.name() == name_cstr)
-                .ok_or(crate::errors::FliError::FindEntry)?;
+                .ok_or(errors::FliError::FindEntry)?;
             if config.display == Display::Long {
                 let mut arena = LongTable::new();
                 arena.push(entry)?;

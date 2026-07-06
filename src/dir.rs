@@ -16,10 +16,6 @@ the directory name, and returns a pointer to the directory stream.
 The stream is positioned at the first entry in the directory.
 */
 
-//pub fn get_dirname(path: *mut c_char) -> *mut c_char {
-//    unsafe { libc::dirname(path) }
-//}
-
 //helper to check type prior
 //
 pub fn is_dir(path: *const c_char) -> FliResult<bool> {
