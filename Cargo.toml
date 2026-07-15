@@ -11,6 +11,8 @@ keywords = ["ls","cli","terminal","no-std"]
 
 [profile.dev]
 panic = "abort"
+lto = "thin"
+opt-level = 1
 
 [[bin]]
 name = "fli"
