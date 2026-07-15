@@ -38,6 +38,11 @@ While working on fli, another aspect of my interest and motivation is to check i
 
 New display options may be added soon.
 
+### Installation
+```cargo install fli-tool```
+
+**note:** Running the above command will globally install the **fli** binary.
+
 ### Build
 **Build:** ```cargo build --release```
 
