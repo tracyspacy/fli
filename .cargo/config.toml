@@ -12,3 +12,12 @@ rustflags = [
     "-C", "link-arg=-lgcc_s",
     "-C", "opt-level=z"
 ]
+[target.x86_64-unknown-linux-musl]
+linker = "x86_64-linux-musl-gcc"
+rustflags = [
+    "-C", "panic=abort",
+    "-C", "opt-level=z",
+    #"-C", "link-arg=-lc",
+    # dynamically linked
+    "-C", "target-feature=-crt-static",
+]
